@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>五度圈查询工具</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 靠顶部对齐，彻底消除多余的顶部大空白 */
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            /* 左右留极小边距（5px），让圆圈最大化顶到手机屏幕两边 */
+            padding: 15px 5px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 600px; /* 限制最大宽度，在电脑端缩窄时保持精致 */
+            width: 100%;
+        }
+
+        /* 画布外包裹容器 */
+        #canvasWrapper {
+            position: relative;
+            width: 100%;
+            margin: 0 auto 20px auto;
+            aspect-ratio: 1 / 1;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #canvasWrapper:active {
+            cursor: grabbing;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none; /* 阻止手机端拖拽圆圈时页面跟着滚动 */
+        }
+
+        /* 旋转图层的原点定位在五度圈的中心 (400, 400) */
+        #circleLayer {
+            transform-origin: 400px 400px;
+            transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+        }
+
+        /* 按钮容器：允许按钮自动折行缩进 */
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap; 
+            gap: 6px;
+            padding: 0 5px;
+        }
+
+        button {
+            background: #252525;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: #353535;
+            border-color: #666;
+        }
+
+        /* 特殊按钮样式 */
+        .snap-btn {
+            min-width: 48px;
+            font-weight: bold;
+        }
+        .snap-btn:hover {
+            background: #007acc;
+            border-color: #0099ff;
+        }
+
+        .action-btn {
+            background: #332211;
+            border-color: #553311;
+        }
+        .action-btn:hover {
+            background: #553311;
+        }
+
+        #toggleSectors {
+            background: #113322;
+            border-color: #115533;
+        }
+        #toggleSectors.active {
+            background: #1e663b;
+            box-shadow: 0 0 8px rgba(0,255,100,0.3);
+        }
+
+        .info {
+            font-size: 13px;
+            color: #888;
+            margin-top: 10px;
+            padding: 0 10px;
+        }
+        #degree text {
+            fill: #000000 !important;
+            font-family: "微软雅黑", "Source Han Sans", "思源黑体", sans-serif !important;
+            font-size: 44px !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <button class="snap-btn" data-angle="0">C</button>
+        <button class="snap-btn" data-angle="-30">G</button>
+        <button class="snap-btn" data-angle="-60">D</button>
+        <button class="snap-btn" data-angle="-90">A</button>
+        <button class="snap-btn" data-angle="-120">E</button>
+        <button class="snap-btn" data-angle="-150">B</button>
+        <button class="snap-btn" data-angle="-180">F♯/G♭</button>
+        <button class="snap-btn" data-angle="-210">C♯/D♭</button>
+        <button class="snap-btn" data-angle="-240">A♭</button>
+        <button class="snap-btn" data-angle="-270">E♭</button>
+        <button class="snap-btn" data-angle="-300">B♭</button>
+        <button class="snap-btn" data-angle="-330">F</button>
+    </div>
+
+    <div class="controls">
+        <button class="action-btn" id="resetBtn">⟲ 复位</button>
+        <button class="action-btn" id="rotateLeft">◀ 左转</button>
+        <button class="action-btn" id="rotateRight">右转 ▶</button>
+        <button id="toggleSectors" class="active">显示/隐藏七级和弦</button>
+    </div>
+
+    <div id="canvasWrapper">
+        <svg xmlns="http://www.w3.org/2000/svg" id="svg92" viewBox="120 120 560 560">
+            <defs id="defs1">
+                <style id="style1">
+                    text {
+                        font-family: "Times New Roman", "Georgia", serif;
+                        fill: #fff;
+                        dominant-baseline: central;
+                        text-anchor: middle;
+                    }
+                    .small { font-size: 16px }
+                    .medium { font-size: 18px }
+                    .large { font-size: 22px; font-weight: 700 }
+                </style>
+            </defs>
+
+            <circle id="circle1" cx="400" cy="400" r="280" fill="#000"/>
+
+            <g id="sectorLayer">
+                <path id="path44" d="m472.45 129.613-22.778 85.004a192 192 0 0 1 86.092 49.62l62.226-62.227a280 280 0 0 0-125.54-72.397Z" style="fill:#08c;stroke:#000;stroke-width:3;fill-opacity:1"/>
+                <path id="path43" d="M400 120a280 280 0 0 0-72.365 9.924l22.861 85.324A192 192 0 0 1 400 208a192 192 0 0 1 49.672 6.617l22.777-85.004A280 280 0 0 0 400 120Z" style="fill:#b30000;stroke:#000;stroke-width:3"/>
+                <path id="path42" d="M327.635 129.924a280 280 0 0 0-125.12 72.592l62.237 62.236a192 192 0 0 1 85.744-49.504z" style="fill:#090;stroke:#000;stroke-width:3"/>
+                <path id="path50" d="M350.496 215.248a192 192 0 0 0-85.744 49.504l29.182 29.182a150 150 0 0 1 67.41-38.202z" style="fill:#b34700;stroke:#000;stroke-width:3"/>
+                <path id="path49" d="M535.764 264.236a192 192 0 0 0-86.092-49.619l-10.861 40.541a150 150 0 0 1 67.193 38.838z" style="fill:#b38f00;stroke:#000;stroke-width:3"/>
+                <path id="path46" d="m350.496 215.248 10.848 40.484A150 150 0 0 1 400 250a150 150 0 0 1 38.81 5.158l10.862-40.54A192 192 0 0 0 400 208a192 192 0 0 0-49.504 7.248z" style="fill:#039;stroke:#000;stroke-width:3;fill-opacity:1"/>
+                <path id="path52" d="m361.344 255.732 15.363 57.334A90 90 0 0 1 400 310a90 90 0 0 1 23.293 3.066l15.518-57.908A150 150 0 0 0 400 250a150 150 0 0 0-38.656 5.732z" style="fill:#80007f;stroke:#000;stroke-width:3;fill-opacity:1"/>
+            </g>
+            <g id="degree">
+                <text id="iv" x="400" y="145" transform="rotate(-30 400 400)">Ⅳ</text>
+                <text id="i" x="400" y="145">Ⅰ</text>
+                <text id="v" x="400" y="145" transform="rotate(30 400 400)">Ⅴ</text>
+                <text id="ii" x="400" y="227" transform="rotate(-30 400 400)">Ⅱ</text>
+                <text id="vi" x="400" y="227">Ⅵ</text>
+                <text id="iii" x="400" y="227" transform="rotate(30 400 400)">Ⅲ</text>
+                <text id="vii" x="400" y="270">Ⅶ</text>
+            </g>
+            <g id="circleLayer">
+                <circle id="circle2" cx="400" cy="400" r="260" fill="none" stroke="#fff" stroke-width="1.5"/>
+                <circle id="circle3" cx="400" cy="400" r="240" fill="none" stroke="#fff" stroke-width="1.5"/>
+                
+                <g>
+                    <text id="text12" x="400" y="150" class="medium" transform="rotate(30 400 400)">1♯</text>
+                    <text id="text13" x="400" y="150" class="medium" transform="rotate(60 400 400)">2♯</text>
+                    <text id="text14" x="400" y="150" class="medium" transform="rotate(90 400 400)">3♯</text>
+                    <text id="text15" x="400" y="150" class="medium" transform="rotate(120 400 400)">4♯</text>
+                    <text id="text16" x="400" y="150" class="medium" transform="rotate(150 400 400)">5♯/7♭</text>
+                    <text id="text17" x="400" y="150" class="medium" transform="rotate(180 400 400)">6♯/6♭</text>
+                    <text id="text18" x="400" y="150" class="medium" transform="rotate(210 400 400)">5♭/7♯</text>
+                    <text id="text19" x="400" y="150" class="medium" transform="rotate(240 400 400)">4♭</text>
+                    <text id="text20" x="400" y="150" class="medium" transform="rotate(270 400 400)">3♭</text>
+                    <text id="text21" x="400" y="150" class="medium" transform="rotate(300 400 400)">2♭</text>
+                    <text id="text22" x="400" y="150" class="medium" transform="rotate(330 400 400)">1♭</text>
+                    <text id="text23" x="400" y="180" class="large">C</text>
+                    <text id="text24" x="400" y="180" class="large" transform="rotate(30 400 400)">G</text>
+                    <text id="text25" x="400" y="180" class="large" transform="rotate(60 400 400)">D</text>
+                    <text id="text26" x="400" y="180" class="large" transform="rotate(90 400 400)">A</text>
+                    <text id="text27" x="400" y="180" class="large" transform="rotate(120 400 400)">E</text>
+                    <text id="text29" x="400" y="180" class="large" transform="rotate(150 400 400)">B/<tspan id="tspan28" dx="-2" dy="3" font-size="70%">C<tspan id="tspan27" dy="-.35em" font-size="75%">♭</tspan></tspan></text>
+                    <text id="text34" x="400" y="180" class="large" transform="rotate(180 400 400)"><tspan id="tspan31" dx="0" dy="2" font-size="70%">F<tspan id="tspan30" dy="-.35em" font-size="75%">♯</tspan></tspan><tspan id="tspan32" dx="0" dy="4.05" font-size="100%">/G</tspan><tspan id="tspan33" dy="-.35em" font-size="75%">♭</tspan></text>
+                    <text id="text39" x="400" y="180" class="large" transform="rotate(-150 400 400)"><tspan id="tspan36" dy="2" font-size="70%">C<tspan id="tspan35" dy="-.35em" font-size="75%">♯</tspan></tspan><tspan id="tspan37" dy="4.05" font-size="100%">/D</tspan><tspan id="tspan38" dy="-.35em" font-size="75%">♭</tspan></text>
+                    <text id="text41" x="400" y="180" class="large" transform="rotate(240 400 400)">A<tspan id="tspan40" dy="-.35em" font-size="75%">♭</tspan></text>
+                    <text id="text43" x="400" y="180" class="large" transform="rotate(270 400 400)">E<tspan id="tspan42" dy="-.35em" font-size="75%">♭</tspan></text>
+                    <text id="text45" x="400" y="180" class="large" transform="rotate(300 400 400)">B<tspan id="tspan44" dy="-.35em" font-size="75%">♭</tspan></text>
+                    <text id="text46" x="400" y="180" class="large" transform="rotate(330 400 400)">F</text>
+                    <text id="text47" x="400" y="240" class="medium">A<tspan id="tspan46" font-size="70%">m</tspan></text>
+                    <text id="text48" x="400" y="240" class="medium" transform="rotate(30 400 400)">E<tspan id="tspan47" font-size="70%">m</tspan></text>
+                    <text id="text49" x="400" y="240" class="medium" transform="rotate(60 400 400)">B<tspan id="tspan48" font-size="70%">m</tspan></text>
+                    <text id="text50" x="400" y="240" class="medium" transform="rotate(90 400 400)">F<tspan id="tspan49" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan50" dy=".35em" font-size="70%">m</tspan></text>
+                    <text id="text52" x="400" y="240" class="medium" transform="rotate(120 400 400)">C<tspan id="tspan51" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan52" dy=".35em" font-size="70%">m</tspan></text>
+                    <text id="text57" x="400" y="240" class="medium" transform="rotate(150 400 400)">G<tspan id="tspan53" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan54" dy=".35em" font-size="70%">m</tspan>/<tspan id="tspan57" font-size="70%">A<tspan id="tspan55" dy="-.35em" font-size="75%">♭</tspan><tspan id="tspan56" dy=".35em" font-size="70%">m</tspan></tspan></text>
+                    <text id="text62" x="400" y="240" class="medium" transform="rotate(180 400 400)"><tspan id="tspan60" font-size="70%">D<tspan id="tspan58" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan59" dy=".35em" font-size="70%">m</tspan></tspan>/E<tspan id="tspan61" dy="-.35em" font-size="75%">♭</tspan><tspan id="tspan62" dy=".35em" font-size="70%">m</tspan></text>
+                    <text id="text67" x="400" y="240" class="medium" transform="rotate(210 400 400)"><tspan id="tspan65" font-size="70%">A<tspan id="tspan63" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan64" dy=".35em" font-size="70%">m</tspan></tspan>/B<tspan id="tspan66" dy="-.35em" font-size="75%">♭</tspan><tspan id="tspan67" dy=".35em" font-size="70%">m</tspan></text>
+                    <text id="text68" x="400" y="240" class="medium" transform="rotate(240 400 400)">F<tspan id="tspan68" font-size="70%">m</tspan></text>
+                    <text id="text69" x="400" y="240" class="medium" transform="rotate(270 400 400)">C<tspan id="tspan69" font-size="70%">m</tspan></text>
+                    <text id="text70" x="400" y="240" class="medium" transform="rotate(300 400 400)">G<tspan id="tspan70" font-size="70%">m</tspan></text>
+                    <text id="text71" x="400" y="240" class="medium" transform="rotate(330 400 400)">D<tspan id="tspan71" font-size="70%">m</tspan></text>
+                    <text id="text72" x="400" y="300" class="small">B°</text>
+                    <text id="text73" x="400" y="300" class="small" transform="rotate(30 400 400)">F<tspan id="tspan72" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan73" dy=".35em" font-size="100%">°</tspan></text>
+                    <text id="text75" x="400" y="300" class="small" transform="rotate(60 400 400)">C<tspan id="tspan74" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan75" dy=".35em" font-size="100%">°</tspan></text>
+                    <text id="text77" x="400" y="300" class="small" transform="rotate(90 400 400)">G<tspan id="tspan76" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan77" dy=".35em" font-size="100%">°</tspan></text>
+                    <text id="text79" x="400" y="300" class="small" transform="rotate(120 400 400)">D<tspan id="tspan78" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan79" dy=".35em" font-size="100%">°</tspan></text>
+                    <text id="text81" x="400" y="300" class="small" transform="rotate(150 400 400)">A<tspan id="tspan80" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan81" dy=".35em" font-size="100%">°</tspan></text>
+                    <text id="text85" x="400" y="300" class="small" transform="rotate(180 400 400)"><tspan id="tspan84" font-size="70%">E<tspan id="tspan82" dy="-.35em" font-size="75%">♯</tspan><tspan id="tspan83" dy=".35em" font-size="100%">°</tspan></tspan>/F°<tspan id="tspan85" font-size="70%">m</tspan></text>
+                    <text id="text86" x="400" y="300" class="small" transform="rotate(210 400 400)">C°</text>
+                    <text id="text87" x="400" y="300" class="small" transform="rotate(240 400 400)">G°</text>
+                    <text id="text88" x="400" y="300" class="small" transform="rotate(270 400 400)">D°</text>
+                    <text id="text89" x="400" y="300" class="small" transform="rotate(300 400 400)">A°</text>
+                    <text id="text90" x="400" y="300" class="small" transform="rotate(330 400 400)">E°</text>
+                </g>
+            </g>
+
+            <g id="centerTitle">
+                <text id="text91" x="400" y="395" style="font-size:20px;font-weight:700">五度圈</text>
+                <text id="text92" x="400" y="425" class="medium">Circle of Fifths</text>
+            </g>
+        </svg>
+    </div>
+
+    <div class="info"><span>🖱️ 鼠标/手指拖拽旋转 · 点击上方调名定位</span></div>
+</div>
+
+<script>
+(function(){
+    const circleLayer = document.getElementById('circleLayer');
+    const container = document.getElementById('canvasWrapper');
+    const sectorLayer = document.getElementById('sectorLayer');
+    const toggleSectorsBtn = document.getElementById('toggleSectors');
+
+    let currentAngle = 0;
+    let isDragging = false;
+    let startTouchAngle = 0;
+    let startCircleAngle = 0;
+
+    function setRotation(deg, enableAnimation = true) {
+        currentAngle = deg;
+        circleLayer.style.transition = enableAnimation ? 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1)' : 'none';
+        circleLayer.style.transform = `rotate(${deg}deg)`;
+    }
+
+    function getAngleFromCenter(clientX, clientY) {
+        const rect = container.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const dx = clientX - centerX;
+        const dy = clientY - centerY;
+        return Math.atan2(dy, dx) * (180 / Math.PI);
+    }
+
+    function handleStart(e) {
+        if(e.cancelable) e.preventDefault();
+        
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        if (clientX == null) return;
+
+        isDragging = true;
+        startTouchAngle = getAngleFromCenter(clientX, clientY);
+        startCircleAngle = currentAngle;
+    }
+
+    function handleMove(e) {
+        if (!isDragging) return;
+        
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        if (clientX == null) return;
+
+        const currentTouchAngle = getAngleFromCenter(clientX, clientY);
+        const deltaAngle = currentTouchAngle - startTouchAngle;
+        
+        setRotation(startCircleAngle + deltaAngle, false);
+    }
+
+    function handleEnd() {
+        if (isDragging) {
+            isDragging = false;
+            let roundedAngle = Math.round(currentAngle / 30) * 30;
+            setRotation(roundedAngle, true);
+        }
+    }
+
+    container.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    container.addEventListener('touchstart', handleStart, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd, { passive: false });
+
+    document.querySelectorAll('.snap-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const angle = parseFloat(this.dataset.angle);
+            if (!isNaN(angle)) {
+                setRotation(angle, true);
+            }
+        });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => setRotation(0, true));
+    document.getElementById('rotateLeft').addEventListener('click', () => setRotation(currentAngle - 30, true));
+    document.getElementById('rotateRight').addEventListener('click', () => setRotation(currentAngle + 30, true));
+
+    toggleSectorsBtn.addEventListener('click', function() {
+        if (sectorLayer.style.display === 'none') {
+            sectorLayer.style.display = 'block';
+            this.classList.add('active');
+        } else {
+            sectorLayer.style.display = 'none';
+            this.classList.remove('active');
+        }
+    });
+
+    setRotation(0, false);
+
+    document.querySelectorAll('svg').forEach(svg => {
+        svg.addEventListener('dragstart', (e) => e.preventDefault());
+    });
+})();
+</script>
+
+</body>
+</html>

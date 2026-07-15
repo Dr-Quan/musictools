@@ -1,0 +1,698 @@
+<html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>音阶齿轮</title>
+    <style>
+        :root {
+            --bg: #1a1d23;
+            --surface: #252830;
+            --text: #e0e0e0;
+            --text-secondary: #a0aab5;
+            --accent-orange: #e68a2e;
+            --accent-blue: #3d94e0;
+            --btn-bg: #2a2d35;
+            --btn-hover: #353a44;
+            --btn-active: #3d94e0;
+            --btn-text: #d0d4dc;
+            --border: #3a3d45;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+            --radius: 14px;
+            --transition: 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            /* 关键修改：改为靠顶部对齐，彻底消除多余的顶部大空白 */
+            align-items: flex-start;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Arial', sans-serif;
+            /* 关键修改：调整内边距，顶部留 15px 的呼吸感，左右仅留 5px 让圆盘尽可能撑满屏幕 */
+            padding: 15px 5px;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* 关键修改：适当收紧圆盘与下方控制面板的间距，使布局在小屏幕下更紧凑 */
+            gap: 16px;
+            width: 100%;
+            max-width: 620px;
+        }
+
+        /* SVG 容器 */
+        .svg-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 520px;
+            aspect-ratio: 1 / 1;
+            cursor: grab;
+            border-radius: 50%;
+            /* 柔光外圈 */
+            box-shadow:
+                0 0 60px rgba(230, 138, 46, 0.08),
+                0 0 60px rgba(61, 148, 224, 0.08),
+                0 8px 40px rgba(0, 0, 0, 0.45);
+            transition: box-shadow 0.4s ease;
+        }
+
+        .svg-wrapper:active {
+            cursor: grabbing;
+            box-shadow:
+                0 0 80px rgba(230, 138, 46, 0.15),
+                0 0 80px rgba(61, 148, 224, 0.15),
+                0 12px 48px rgba(0, 0, 0, 0.55);
+        }
+
+        .svg-wrapper.dragging {
+            cursor: grabbing;
+        }
+
+        .svg-wrapper svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+
+        /* 按钮面板 */
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .snap-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .snap-btn {
+            padding: 9px 15px;
+            border-radius: 22px;
+            border: 1.5px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--btn-text);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.22s ease;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            min-width: 44px;
+            text-align: center;
+            font-family: inherit;
+        }
+
+        .snap-btn:hover {
+            background: var(--btn-hover);
+            border-color: #5a5f6b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+
+        .snap-btn:active {
+            transform: scale(0.94);
+            transition: all 0.08s ease;
+            background: var(--btn-active);
+            border-color: var(--btn-active);
+            color: #fff;
+            box-shadow: 0 0 18px rgba(61, 148, 224, 0.45);
+        }
+
+        .snap-btn.active-snap {
+            background: var(--btn-active);
+            border-color: #5aa8f0;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(61, 148, 224, 0.4);
+            font-weight: 700;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            border-radius: 24px;
+            border: 1.5px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--btn-text);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.22s ease;
+            letter-spacing: 0.4px;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            background: var(--btn-hover);
+            border-color: #5a5f6b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+
+        .action-btn:active {
+            transform: scale(0.94);
+            transition: all 0.08s ease;
+        }
+
+        #resetBtn {
+            border-color: #e68a2e55;
+            color: #f0b866;
+        }
+        #resetBtn:hover {
+            border-color: #e68a2e;
+            box-shadow: 0 0 18px rgba(230, 138, 46, 0.25);
+        }
+
+        #rotateLeft,
+        #rotateRight {
+            border-color: #3d94e055;
+            color: #7ab8f0;
+        }
+        #rotateLeft:hover,
+        #rotateRight:hover {
+            border-color: #3d94e0;
+            box-shadow: 0 0 18px rgba(61, 148, 224, 0.25);
+        }
+
+        .hint-text {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            opacity: 0.75;
+            margin-top: 2px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 540px) {
+            .svg-wrapper {
+                /* 关键修改：在超窄屏幕下让圆盘拥有更广的占比 */
+                max-width: 95vw;
+            }
+            .snap-btn {
+                padding: 7px 11px;
+                font-size: 12px;
+                border-radius: 18px;
+                min-width: 36px;
+            }
+            .snap-buttons {
+                gap: 5px;
+            }
+            .action-btn {
+                padding: 8px 15px;
+                font-size: 13px;
+                border-radius: 20px;
+            }
+            .action-buttons {
+                gap: 6px;
+            }
+            .hint-text {
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .snap-btn {
+                padding: 6px 9px;
+                font-size: 11px;
+                border-radius: 16px;
+                min-width: 30px;
+                letter-spacing: 0;
+            }
+            .snap-buttons {
+                gap: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="svg-wrapper" id="canvasWrapper">
+            <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <style>
+                        .outer-text {
+                            font-size: 30px;
+                            font-weight: 650;
+                            fill: #f2e9dc;
+                            font-family: 'Arial', 'Helvetica Neue', sans-serif;
+                            text-anchor: middle;
+                            dominant-baseline: central;
+                        }
+                        .inner-text {
+                            font-size: 30px;
+                            font-weight: 500;
+                            fill: #d6e6fa;
+                            font-family: 'Arial', 'Helvetica Neue', sans-serif;
+                            text-anchor: middle;
+                            dominant-baseline: central;
+                        }
+                        .sharp-sup {
+                            font-size: 0.55em;
+                            fill: inherit;
+                            baseline-shift: super;
+                            font-weight: 700;
+                            opacity: 0.95;
+                        }
+                        .gear-text-major {
+                            font-size: 16px;
+                            font-weight: bold;
+                            fill: #2c3e50;
+                            font-family: 'Arial', 'Helvetica Neue', sans-serif;
+                            text-anchor: middle;
+                            dominant-baseline: central;
+                        }
+                        .gear-text-minor {
+                            font-size: 14px;
+                            font-weight: bold;
+                            fill: #2c3e50;
+                            font-family: 'Arial', 'Helvetica Neue', sans-serif;
+                            text-anchor: middle;
+                            dominant-baseline: central;
+                        }
+                        .gear-text-interval {
+                            font-size: 13px;
+                            font-weight: normal;
+                            fill: #607d8b;
+                            font-family: 'Arial', 'Helvetica Neue', sans-serif;
+                            text-anchor: middle;
+                            dominant-baseline: central;
+                        }
+                    </style>
+
+                    <path id="inner-hole" d="M 267.0,176.8 A 127.5,127.5 0 0,1 333.0,176.8 L 349.8,114.1 A 192.5,192.5 0 0,0 250.2,114.1 Z"></path>
+                    <path id="outer-hole" d="M 250.2,114.1 A 192.5,192.5 0 0,1 349.8,114.1 L 366.6,51.3 A 257.5,257.5 0 0,0 233.4,51.3 Z"></path>
+                    <path id="full-hole" d="M 267.0,176.8 A 127.5,127.5 0 0,1 333.0,176.8 L 366.6,51.3 A 257.5,257.5 0 0,0 233.4,51.3 Z"></path>
+
+                    <mask id="gear-mask">
+                        <circle cx="300" cy="300" r="295" fill="white"></circle>
+                        <circle cx="300" cy="300" r="70" fill="black"></circle>
+                        <use href="#full-hole" fill="black"></use>
+                        <use href="#full-hole" fill="black" transform="rotate(60 300 300)"></use>
+                        <use href="#inner-hole" fill="black" transform="rotate(90 300 300)"></use>
+                        <use href="#outer-hole" fill="black" transform="rotate(120 300 300)"></use>
+                        <use href="#full-hole" fill="black" transform="rotate(150 300 300)"></use>
+                        <use href="#full-hole" fill="black" transform="rotate(210 300 300)"></use>
+                        <use href="#inner-hole" fill="black" transform="rotate(240 300 300)"></use>
+                        <use href="#outer-hole" fill="black" transform="rotate(270 300 300)"></use>
+                        <use href="#inner-hole" fill="black" transform="rotate(300 300 300)"></use>
+                        <use href="#outer-hole" fill="black" transform="rotate(330 300 300)"></use>
+                    </mask>
+
+                    <filter id="gear-shadow" x="-10%" y="-10%" width="120%" height="120%">
+                        <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.6"></feDropShadow>
+                    </filter>
+                </defs>
+
+                <g id="rotatableLayer" style="transition: none 0s ease 0s; transform-origin: 300px 300px; transform: rotate(0deg);">
+                    <circle cx="300" cy="300" r="225" fill="none" stroke="#e68a2e" stroke-width="65"></circle>
+                    <circle cx="300" cy="300" r="160" fill="none" stroke="#3d94e0" stroke-width="65"></circle>
+
+                    <g class="outer-text">
+                        <text x="300" y="75" data-cx="300" data-cy="75" style="transition: none 0s ease 0s; transform-origin: 300px 75px; transform: rotate(0deg);">C</text>
+                        <text x="412.5" y="105.2" data-cx="412.5" data-cy="105.2" style="transition: none 0s ease 0s; transform-origin: 412.5px 105.2px; transform: rotate(0deg);">C<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="494.9" y="187.5" data-cx="494.9" data-cy="187.5" style="transition: none 0s ease 0s; transform-origin: 494.9px 187.5px; transform: rotate(0deg);">D</text>
+                        <text x="525" y="300" data-cx="525" data-cy="300" style="transition: none 0s ease 0s; transform-origin: 525px 300px; transform: rotate(0deg);">D<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="494.9" y="412.5" data-cx="494.9" data-cy="412.5" style="transition: none 0s ease 0s; transform-origin: 494.9px 412.5px; transform: rotate(0deg);">E</text>
+                        <text x="412.5" y="494.9" data-cx="412.5" data-cy="494.9" style="transition: none 0s ease 0s; transform-origin: 412.5px 494.9px; transform: rotate(0deg);">F</text>
+                        <text x="300" y="525" data-cx="300" data-cy="525" style="transition: none 0s ease 0s; transform-origin: 300px 525px; transform: rotate(0deg);">F<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="187.5" y="494.9" data-cx="187.5" data-cy="494.9" style="transition: none 0s ease 0s; transform-origin: 187.5px 494.9px; transform: rotate(0deg);">G</text>
+                        <text x="105.2" y="412.5" data-cx="105.2" data-cy="412.5" style="transition: none 0s ease 0s; transform-origin: 105.2px 412.5px; transform: rotate(0deg);">G<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="75" y="300" data-cx="75" data-cy="300" style="transition: none 0s ease 0s; transform-origin: 75px 300px; transform: rotate(0deg);">A</text>
+                        <text x="105.2" y="187.5" data-cx="105.2" data-cy="187.5" style="transition: none 0s ease 0s; transform-origin: 105.2px 187.5px; transform: rotate(0deg);">A<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="187.5" y="105.2" data-cx="187.5" data-cy="105.2" style="transition: none 0s ease 0s; transform-origin: 187.5px 105.2px; transform: rotate(0deg);">B</text>
+                    </g>
+
+                    <g class="inner-text">
+                        <text x="300" y="140" data-cx="300" data-cy="140" style="transition: none 0s ease 0s; transform-origin: 300px 140px; transform: rotate(0deg);">a</text>
+                        <text x="380" y="161.4" data-cx="380" data-cy="161.4" style="transition: none 0s ease 0s; transform-origin: 380px 161.4px; transform: rotate(0deg);">a<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="438.6" y="220" data-cx="438.6" data-cy="220" style="transition: none 0s ease 0s; transform-origin: 438.6px 220px; transform: rotate(0deg);">b</text>
+                        <text x="460" y="300" data-cx="460" data-cy="300" style="transition: none 0s ease 0s; transform-origin: 460px 300px; transform: rotate(0deg);">c</text>
+                        <text x="438.6" y="380" data-cx="438.6" data-cy="380" style="transition: none 0s ease 0s; transform-origin: 438.6px 380px; transform: rotate(0deg);">c<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="380" y="438.6" data-cx="380" data-cy="438.6" style="transition: none 0s ease 0s; transform-origin: 380px 438.6px; transform: rotate(0deg);">d</text>
+                        <text x="300" y="460" data-cx="300" data-cy="460" style="transition: none 0s ease 0s; transform-origin: 300px 460px; transform: rotate(0deg);">d<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="220" y="438.6" data-cx="220" data-cy="438.6" style="transition: none 0s ease 0s; transform-origin: 220px 438.6px; transform: rotate(0deg);">e</text>
+                        <text x="161.4" y="380" data-cx="161.4" data-cy="380" style="transition: none 0s ease 0s; transform-origin: 161.4px 380px; transform: rotate(0deg);">f</text>
+                        <text x="140" y="300" data-cx="140" data-cy="300" style="transition: none 0s ease 0s; transform-origin: 140px 300px; transform: rotate(0deg);">f<tspan class="sharp-sup">♯</tspan></text>
+                        <text x="161.4" y="220" data-cx="161.4" data-cy="220" style="transition: none 0s ease 0s; transform-origin: 161.4px 220px; transform: rotate(0deg);">g</text>
+                        <text x="220" y="161.4" data-cx="220" data-cy="161.4" style="transition: none 0s ease 0s; transform-origin: 220px 161.4px; transform: rotate(0deg);">g<tspan class="sharp-sup">♯</tspan></text>
+                    </g>
+                </g>
+
+                <g id="gearMaskLayer" filter="url(#gear-shadow)" style="pointer-events: none;">
+                    <circle cx="300" cy="300" r="295" fill="#e5e8ec" mask="url(#gear-mask)"></circle>
+                    <g class="gear-annotations">
+                        <text x="300" y="24" class="gear-text-major">1 (大调)</text>
+                        <text x="539" y="162" class="gear-text-major">2</text>
+                        <text x="539" y="438" class="gear-text-major">3</text>
+                        <text x="438" y="539" class="gear-text-major">4</text>
+                        <text x="162" y="539" class="gear-text-major">5</text>
+                        <text x="24" y="300" class="gear-text-major">6</text>
+                        <text x="165" y="60" class="gear-text-major">7</text>
+                        <text x="438" y="61" class="gear-text-interval">全</text>
+                        <text x="576" y="300" class="gear-text-interval">全</text>
+                        <text x="495" y="495" class="gear-text-interval">半</text>
+                        <text x="300" y="576" class="gear-text-interval">全</text>
+                        <text x="61" y="438" class="gear-text-interval">全</text>
+                        <text x="61" y="162" class="gear-text-interval">全</text>
+                        <text x="228" y="33" class="gear-text-interval">半</text>
+                        <text x="300" y="195" class="gear-text-minor">1 (小调)</text>
+                        <text x="391" y="247" class="gear-text-minor">2</text>
+                        <text x="405" y="300" class="gear-text-minor">3</text>
+                        <text x="352" y="391" class="gear-text-minor">4</text>
+                        <text x="247" y="391" class="gear-text-minor">5</text>
+                        <text x="209" y="352" class="gear-text-minor">6</text>
+                        <text x="209" y="247" class="gear-text-minor">7</text>
+                        <text x="352" y="209" class="gear-text-interval">全</text>
+                        <text x="401" y="272" class="gear-text-interval">半</text>
+                        <text x="391" y="352" class="gear-text-interval">全</text>
+                        <text x="300" y="405" class="gear-text-interval">全</text>
+                        <text x="225" y="374" class="gear-text-interval">半</text>
+                        <text x="195" y="300" class="gear-text-interval">全</text>
+                        <text x="247" y="209" class="gear-text-interval">全</text>
+                    </g>
+                </g>
+
+                <circle cx="300" cy="300" r="4" fill="#a0aab5" style="pointer-events: none;"></circle>
+            </svg>
+        </div>
+
+        <div class="controls-panel">
+            <div class="snap-buttons" id="snapButtons">
+                <button class="snap-btn active-snap" data-angle="0">C/a</button>
+                <button class="snap-btn" data-angle="-60">D/b</button>
+                <button class="snap-btn" data-angle="-120">E/c♯</button>
+                <button class="snap-btn" data-angle="-150">F/d</button>
+                <button class="snap-btn" data-angle="-210">G/e</button>
+                <button class="snap-btn" data-angle="-270">A/f♯</button>
+                <button class="snap-btn" data-angle="-330">B/g♯</button>
+                <button class="snap-btn" data-angle="-30">D♭/b♭</button>
+                <button class="snap-btn" data-angle="-90">E♭/c</button>
+                <button class="snap-btn" data-angle="-180">G♭/e♭</button>
+                <button class="snap-btn" data-angle="-240">A♭/f</button>
+                <button class="snap-btn" data-angle="-300">B♭/g</button>
+            </div>
+
+            <div class="action-buttons">
+                <button class="action-btn" id="resetBtn">⟲ 复位</button>
+                <button class="action-btn" id="rotateLeft">◀ 左转</button>
+                <button class="action-btn" id="rotateRight">右转 ▶</button>
+            </div>
+
+            <p class="hint-text">🖱️ 拖拽圆盘旋转 · 点击上方调名快速定位 · 文字始终保持正向</p>
+        </div>
+    </div>
+
+    <script>
+(function() {
+    // ============ DOM 引用 ============
+    const rotatableLayer = document.getElementById('rotatableLayer');
+    const canvasWrapper = document.getElementById('canvasWrapper');
+    const snapButtonsContainer = document.getElementById('snapButtons');
+    const resetBtn = document.getElementById('resetBtn');
+    const rotateLeftBtn = document.getElementById('rotateLeft');
+    const rotateRightBtn = document.getElementById('rotateRight');
+
+    // 收集 rotatableLayer 中所有需要反向旋转的 text 元素
+    const textElements = [];
+    const allTextNodes = rotatableLayer.querySelectorAll('text');
+    allTextNodes.forEach(textEl => {
+        const cx = parseFloat(textEl.getAttribute('data-cx') || textEl.getAttribute('x'));
+        const cy = parseFloat(textEl.getAttribute('data-cy') || textEl.getAttribute('y'));
+        if (!isNaN(cx) && !isNaN(cy)) {
+            textElements.push({
+                el: textEl,
+                cx: cx,
+                cy: cy,
+            });
+        }
+    });
+
+    // ==================== 升降号切换 ====================
+
+    // 保存每个音名最初的HTML（升号版本）
+    const originalTextHTML = new Map();
+    allTextNodes.forEach(el => {
+        originalTextHTML.set(el, el.innerHTML);
+    });
+
+    // 需要使用降号表示的调（对应按钮角度）
+    const flatKeyAngles = new Set([
+        -150,   // F/d
+        -30,    // D♭/b♭
+        -90,    // E♭/c
+        -180,   // G♭/e♭
+        -240,   // A♭/f
+        -300    // B♭/g
+    ]);
+
+    // 升号->降号对应
+    const sharpToFlat = {
+        "C": "D",
+        "D": "E",
+        "F": "G",
+        "G": "A",
+        "A": "B",
+        "c": "d",
+        "d": "e",
+        "f": "g",
+        "g": "a",
+        "a": "b"
+    };
+
+    function setAccidental(useFlat) {
+        allTextNodes.forEach(el => {
+            if (!useFlat) {
+                // 恢复原来的升号HTML
+                el.innerHTML = originalTextHTML.get(el);
+                return;
+            }
+
+            const html = originalTextHTML.get(el);
+
+            // 没有升号的不处理
+            if (!html.includes("sharp-sup")) {
+                el.innerHTML = html;
+                return;
+            }
+
+            // 取根音（第一个字符）
+            const root = html.charAt(0);
+
+            if (!(root in sharpToFlat)) {
+                el.innerHTML = html;
+                return;
+            }
+
+            // 改成降号，并保持上标格式
+            el.innerHTML =
+                `${sharpToFlat[root]}<tspan class="sharp-sup">♭</tspan>`;
+        });
+    }
+
+    // ============ 状态 ============
+    let currentAngle = 0;
+    let isDragging = false;
+    let startTouchAngle = 0;
+    let startCircleAngle = 0;
+    const SNAP_STEP = 30; // 每30度一个调（12个半音/五度圈）
+
+    // ============ 核心：设置旋转 ============
+    function setRotation(deg, enableAnimation = true) {
+        currentAngle = deg;
+
+        // 底层圆环+文字组旋转
+        const transitionValue = enableAnimation ?
+            'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1)' :
+            'none';
+        rotatableLayer.style.transition = transitionValue;
+        rotatableLayer.style.transformOrigin = '300px 300px';
+        rotatableLayer.style.transform = `rotate(${deg}deg)`;
+
+        // 每个文字反向旋转，保持始终向上
+        textElements.forEach(item => {
+            item.el.style.transition = transitionValue;
+            item.el.style.transformOrigin = `${item.cx}px ${item.cy}px`;
+            item.el.style.transform = `rotate(${-deg}deg)`;
+        });
+
+        // 更新按钮高亮
+        updateActiveButton(deg);
+
+        // 根据当前调自动切换升降号
+        let normalized = Math.round(deg / SNAP_STEP) * SNAP_STEP;
+        normalized = ((normalized % 360) + 360) % 360;
+        let angleKey = normalized === 0 ? 0 : -(360 - normalized);
+
+        setAccidental(flatKeyAngles.has(angleKey));
+    }
+
+    // ============ 高亮最近的按钮 ============
+    function updateActiveButton(deg) {
+        // 将角度规范化到 [0, 360) 然后找到最近的 snap 角度
+        let normalized = ((deg % 360) + 360) % 360;
+        // 最近的30度倍数
+        let snapped = Math.round(normalized / SNAP_STEP) * SNAP_STEP;
+        if (snapped === 360) snapped = 0;
+        // 转为负角度表示（与按钮 data-angle 一致：0, -30, -60, ... -330）
+        let snappedNegative = snapped === 0 ? 0 : -(360 - snapped);
+
+        const allSnapBtns = snapButtonsContainer.querySelectorAll('.snap-btn');
+        allSnapBtns.forEach(btn => {
+            const btnAngle = parseFloat(btn.getAttribute('data-angle'));
+            if (Math.abs(btnAngle - snappedNegative) < 0.01 ||
+                Math.abs(btnAngle - snappedNegative - 360) < 0.01 ||
+                Math.abs(btnAngle - snappedNegative + 360) < 0.01) {
+                btn.classList.add('active-snap');
+            } else {
+                btn.classList.remove('active-snap');
+            }
+        });
+    }
+
+    // ============ 角度计算 ============
+    function getAngleFromCenter(clientX, clientY) {
+        const rect = canvasWrapper.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = clientX - centerX;
+        const dy = clientY - centerY;
+        return Math.atan2(dy, dx) * (180 / Math.PI);
+    }
+
+    // ============ 拖拽事件 ============
+    function handleStart(e) {
+        if (e.cancelable) e.preventDefault();
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        if (clientX == null) return;
+
+        isDragging = true;
+        canvasWrapper.classList.add('dragging');
+        startTouchAngle = getAngleFromCenter(clientX, clientY);
+        startCircleAngle = currentAngle;
+    }
+
+    function handleMove(e) {
+        if (!isDragging) return;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        if (clientX == null) return;
+
+        const currentTouchAngle = getAngleFromCenter(clientX, clientY);
+        const deltaAngle = currentTouchAngle - startTouchAngle;
+        setRotation(startCircleAngle + deltaAngle, false);
+    }
+
+    function handleEnd() {
+        if (isDragging) {
+            isDragging = false;
+            canvasWrapper.classList.remove('dragging');
+            // 磁吸到最近的30度倍数
+            let roundedAngle = Math.round(currentAngle / SNAP_STEP) * SNAP_STEP;
+            setRotation(roundedAngle, true);
+        }
+    }
+
+    // 鼠标事件
+    canvasWrapper.addEventListener('mousedown', handleStart);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    // 触摸事件
+    canvasWrapper.addEventListener('touchstart', handleStart, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd, { passive: false });
+
+    // 防止浏览器默认的SVG拖拽行为
+    canvasWrapper.querySelector('svg').addEventListener('dragstart', (e) => e.preventDefault());
+
+    // ============ 按钮事件 ============
+    // 12个调名按钮
+    snapButtonsContainer.addEventListener('click', function(e) {
+        const btn = e.target.closest('.snap-btn');
+        if (!btn) return;
+        const angle = parseFloat(btn.getAttribute('data-angle'));
+        if (!isNaN(angle)) {
+            setRotation(angle, true);
+        }
+    });
+
+    // 复位按钮
+    resetBtn.addEventListener('click', () => setRotation(0, true));
+
+    // 左转按钮（顺时针30度，角度减小）
+    rotateLeftBtn.addEventListener('click', () => {
+        let newAngle = currentAngle - SNAP_STEP;
+        setRotation(newAngle, true);
+    });
+
+    // 右转按钮（逆时针30度，角度增大）
+    rotateRightBtn.addEventListener('click', () => {
+        let newAngle = currentAngle + SNAP_STEP;
+        setRotation(newAngle, true);
+    });
+
+    // ============ 键盘快捷键 ============
+    window.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target
+            .isContentEditable) {
+            return;
+        }
+        switch (e.key.toLowerCase()) {
+            case 'arrowleft':
+                e.preventDefault();
+                setRotation(currentAngle - SNAP_STEP, true);
+                break;
+            case 'arrowright':
+                e.preventDefault();
+                setRotation(currentAngle + SNAP_STEP, true);
+                break;
+            case 'r':
+                e.preventDefault();
+                setRotation(0, true);
+                break;
+            case '0':
+                e.preventDefault();
+                setRotation(0, true);
+                break;
+            default:
+                break;
+        }
+    });
+
+    // ============ 初始化 ============
+    setRotation(0, false);
+
+    console.log('✅ 音阶齿轮已就绪');
+})();
+    </script>
+</body></html>
