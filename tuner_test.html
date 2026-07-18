@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易调音器 · 高精度版</title>
+    <style>
+        /* 完全保留原版界面风格 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f7;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            width: 85%;
+            max-width: 400px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: #34c759;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+            transition: background-color 0.2s;
+        }
+        button.active {
+            background-color: #ff3b30;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            border: 2px solid #e5e5ea;
+            border-radius: 12px;
+            box-sizing: border-box;
+            background-color: #fafafa;
+            color: #1c1c1e;
+        }
+        input#noteOut {
+            font-size: 48px;
+            height: 80px;
+            color: #007aff;
+        }
+        /* 增加一个极小的状态提示，不破坏原版布局 */
+        .status-hint {
+            font-size: 13px;
+            color: #8e8e93;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <button id="startBtn">启动麦克风</button>
+    <input type="text" id="noteOut" readonly placeholder="点击上方启动">
+    <input type="text" id="centsOut" readonly placeholder="+-0 cents">
+    <div class="status-hint" id="statusHint">⚡ 使用 YIN + 抛物线插值 (±5 cents)</div>
+</div>
+
+<!-- 使用 type="importmap" 加载 pitchfinder (ESM) -->
+<script type="importmap">
+    {
+        "imports": {
+            "pitchfinder": "https://cdn.jsdelivr.net/npm/pitchfinder@2.0.6/dist/pitchfinder.esm.js"
+        }
+    }
+</script>
+
+<script type="module">
+    // ----- 保留原版界面，完全替换核心检测逻辑 -----
+    import { YIN } from 'pitchfinder';
+
+    const startBtn = document.getElementById('startBtn');
+    const noteOut = document.getElementById('noteOut');
+    const centsOut = document.getElementById('centsOut');
+    const statusHint = document.getElementById('statusHint');
+
+    // ----- 音频相关变量 -----
+    let audioCtx = null;
+    let stream = null;
+    let animationId = null;
+    let analyser = null;
+    const buflen = 4096;          // 更大的缓冲区，提高低频精度
+    const buf = new Float32Array(buflen);
+
+    // ----- 音名映射 (C0 ~ B8) -----
+    const noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    // ----- 创建 YIN 检测器 (带抛物线插值) -----
+    // 设置 sampleRate 为动态值，在启动时传入
+    let pitchDetector = null;
+
+    // ----- 工具：频率 -> 音高序号 (midi note) -----
+    function freqToMidi(freq) {
+        // 标准 A4 = 440Hz, MIDI note 69
+        return 12 * (Math.log(freq / 440) / Math.log(2)) + 69;
+    }
+
+    // ----- 工具：midi note -> 频率 (用于计算音分偏差) -----
+    function midiToFreq(midi) {
+        return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    // ----- 核心更新循环 (使用 pitchfinder 检测) -----
+    function updatePitch() {
+        if (!analyser) {
+            // 安全防护
+            animationId = requestAnimationFrame(updatePitch);
+            return;
+        }
+
+        // 1. 读取时域数据
+        analyser.getFloatTimeDomainData(buf);
+
+        // 2. 检测音高 (返回频率, 如果检测不到返回 null)
+        let frequency = null;
+        try {
+            frequency = pitchDetector(buf);
+        } catch (_) {
+            // 偶尔的异常忽略
+        }
+
+        // 3. 处理检测结果
+        if (frequency === null || frequency === undefined || frequency < 30 || frequency > 5000) {
+            // 无效或超出人耳/乐器范围
+            noteOut.value = "- -";
+            centsOut.value = "- -";
+        } else {
+            // 3a. 计算 MIDI 序号 (浮点数)
+            const midiFloat = freqToMidi(frequency);
+            // 四舍五入得到最接近的半音 (避免八度错误: 用 round 而不是 floor)
+            const midiRounded = Math.round(midiFloat);
+
+            // 3b. 计算八度与音名
+            const octave = Math.floor(midiRounded / 12) - 1;
+            const noteIndex = ((midiRounded % 12) + 12) % 12; // 保证 0~11
+            const noteName = noteStrings[noteIndex];
+
+            // 限制显示范围 C0 ~ B8 (midi 12 ~ 107)
+            if (midiRounded >= 12 && midiRounded <= 107) {
+                // 显示音名 + 八度
+                noteOut.value = `${noteName}${octave}`;
+            } else {
+                // 超出人耳范围，但依然显示音名，八度可能超出
+                noteOut.value = `${noteName}${octave}`;
+            }
+
+            // 3c. 计算音分偏差 (使用抛物线插值后的频率)
+            // 目标频率 = 四舍五入后的 MIDI 对应的标准频率
+            const targetFreq = midiToFreq(midiRounded);
+            // 音分 = 1200 * log2(f / f_ref)
+            let cents = 1200 * Math.log2(frequency / targetFreq);
+
+            // 限制音分范围，显示更干净
+            cents = Math.round(cents);
+            // 避免 -0 显示
+            const sign = cents >= 0 ? '+' : '';
+            centsOut.value = `${sign}${cents} cents`;
+
+            // 可选：如果音分接近 0，显示绿色调谐状态 (不破坏原版风格)
+            if (Math.abs(cents) <= 5) {
+                statusHint.textContent = '✅ 精准 (±5 cents)';
+                statusHint.style.color = '#34c759';
+            } else {
+                statusHint.textContent = '🎵 调音中 ...';
+                statusHint.style.color = '#8e8e93';
+            }
+        }
+
+        // 继续下一帧
+        animationId = requestAnimationFrame(updatePitch);
+    }
+
+    // ----- 启动/停止 麦克风 (保留原版交互) -----
+    startBtn.addEventListener('click', async () => {
+        // 如果已经启动，则关闭
+        if (audioCtx && audioCtx.state !== 'closed') {
+            // 停止循环
+            if (animationId) cancelAnimationFrame(animationId);
+            // 关闭音频轨道
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            // 关闭音频上下文
+            await audioCtx.close();
+            audioCtx = null;
+            stream = null;
+            analyser = null;
+            pitchDetector = null;
+
+            startBtn.textContent = '启动麦克风';
+            startBtn.classList.remove('active');
+            noteOut.value = '';
+            centsOut.value = '';
+            statusHint.textContent = '⚡ 使用 YIN + 抛物线插值 (±5 cents)';
+            statusHint.style.color = '#8e8e93';
+            return;
+        }
+
+        // ----- 启动麦克风 -----
+        try {
+            // 获取用户媒体
+            stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: false,   // 调音器场景关闭这些处理，保证原始信号
+                    noiseSuppression: false,
+                    autoGainControl: false
+                }
+            });
+
+            // 创建音频上下文
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // 恢复 suspended 状态
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
+            const source = audioCtx.createMediaStreamSource(stream);
+
+            // 创建 Analyser
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = buflen;
+            analyser.smoothingTimeConstant = 0.0; // 无平滑，实时响应
+            source.connect(analyser);
+
+            // 初始化 YIN 检测器 (传入当前 sampleRate)
+            pitchDetector = new YIN({
+                sampleRate: audioCtx.sampleRate,
+                // 默认阈值 0.15，可适当调整提高灵敏度
+                threshold: 0.12
+            });
+
+            // 更新 UI 状态
+            startBtn.textContent = '停止麦克风';
+            startBtn.classList.add('active');
+            noteOut.value = '...';
+            centsOut.value = '...';
+            statusHint.textContent = '🎤 检测中 ...';
+            statusHint.style.color = '#007aff';
+
+            // 如果已有动画则取消
+            if (animationId) cancelAnimationFrame(animationId);
+
+            // 启动检测循环
+            updatePitch();
+
+        } catch (err) {
+            alert(`无法获取麦克风: ${err.message || err}\n请确保使用 HTTPS 并允许权限。`);
+            // 重置状态
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            if (audioCtx) {
+                await audioCtx.close();
+                audioCtx = null;
+            }
+            analyser = null;
+            pitchDetector = null;
+            startBtn.textContent = '启动麦克风';
+            startBtn.classList.remove('active');
+        }
+    });
+
+    // ----- 页面关闭时释放资源 (可选) -----
+    window.addEventListener('beforeunload', async () => {
+        if (audioCtx) {
+            await audioCtx.close();
+        }
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+    });
+
+    // 兼容性提示：如果浏览器不支持 importmap，给出提示
+    console.log('简易调音器 · 高精度版 (YIN + 抛物线插值)');
+</script>
+
+</body>
+</html>
