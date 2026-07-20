@@ -538,11 +538,12 @@
         rotatableLayer.style.transform = `rotate(${deg}deg)`;
 
         // 每个文字反向旋转，保持始终向上
-        textElements.forEach(item => {
-            item.el.style.transition = transitionValue;
-            item.el.style.transformOrigin = `${item.cx}px ${item.cy}px`;
-            item.el.style.transform = `rotate(${-deg}deg)`;
-        });
+textElements.forEach(item => {
+    item.el.setAttribute(
+        "transform",
+        `rotate(${-deg} ${item.cx} ${item.cy})`
+    );
+});
 
         // 更新按钮高亮
         updateActiveButton(deg);
