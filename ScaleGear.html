@@ -526,35 +526,38 @@
     const SNAP_STEP = 30; // 每30度一个调（12个半音/五度圈）
 
     // ============ 核心：设置旋转 ============
-    function setRotation(deg, enableAnimation = true) {
-        currentAngle = deg;
+function setRotation(deg, enableAnimation = true) {
+    currentAngle = deg;
 
-        // 底层圆环+文字组旋转
-        const transitionValue = enableAnimation ?
-            'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1)' :
-            'none';
-        rotatableLayer.style.transition = transitionValue;
-        rotatableLayer.style.transformOrigin = '300px 300px';
-        rotatableLayer.style.transform = `rotate(${deg}deg)`;
+    // 1. 底层圆环+文字组旋转（保持 Style 旋转或同样改用 SVG transform）
+    const transitionValue = enableAnimation ?
+        'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.1)' :
+        'none';
+    
+    rotatableLayer.style.transition = transitionValue;
+    rotatableLayer.style.transformOrigin = '300px 300px';
+    rotatableLayer.style.transform = `rotate(${deg}deg)`;
 
-        // 每个文字反向旋转，保持始终向上
-textElements.forEach(item => {
-    item.el.setAttribute(
-        "transform",
-        `rotate(${-deg} ${item.cx} ${item.cy})`
-    );
-});
+    // 2. 每个文字反向旋转（关键修改：放弃 CSS style，使用 SVG 原生 attribute）
+    textElements.forEach(item => {
+        // 过渡动画同步
+        item.el.style.transition = transitionValue;
+        
+        // 使用 SVG 标准属性 transform="rotate(角度, 中心X, 中心Y)"
+        // 这种写法的中心坐标在所有 iOS / Android / PC 上行为完全一致
+        item.el.setAttribute('transform', `rotate(${-deg} ${item.cx} ${item.cy})`);
+    });
 
-        // 更新按钮高亮
-        updateActiveButton(deg);
+    // 更新按钮高亮
+    updateActiveButton(deg);
 
-        // 根据当前调自动切换升降号
-        let normalized = Math.round(deg / SNAP_STEP) * SNAP_STEP;
-        normalized = ((normalized % 360) + 360) % 360;
-        let angleKey = normalized === 0 ? 0 : -(360 - normalized);
+    // 根据当前调自动切换升降号
+    let normalized = Math.round(deg / SNAP_STEP) * SNAP_STEP;
+    normalized = ((normalized % 360) + 360) % 360;
+    let angleKey = normalized === 0 ? 0 : -(360 - normalized);
 
-        setAccidental(flatKeyAngles.has(angleKey));
-    }
+    setAccidental(flatKeyAngles.has(angleKey));
+}
 
     // ============ 高亮最近的按钮 ============
     function updateActiveButton(deg) {
