@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仿真机械节拍器</title>
+    <style>
+        :root {
+            --wood-dark: #3a2218;
+            --wood-mid: #5c3a24;
+            --wood-light: #7d5030;
+            --wood-surface: #8b5e3c;
+            --gold: #c9a05a;
+            --gold-light: #e0c78a;
+            --gold-dark: #8b6918;
+            --cream: #f5e6d3;
+            --bg: #1a1008;
+            --text: #e8d5c0;
+            --accent-red: #c0392b;
+            --accent-green: #27ae60;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --inner-glow: rgba(255, 220, 150, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(ellipse at center, #2a1a0e 0%, #0d0804 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Georgia', 'Noto Serif SC', 'STSong', 'Songti SC', serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            padding: 20px;
+        }
+
+        .metronome-container {
+            position: relative;
+            width: 420px;
+            max-width: 95vw;
+            background: linear-gradient(175deg,
+                    #6b3f28 0%, #543018 8%, #7d4a2c 15%, #5c321a 25%,
+                    #6b3a20 35%, #8b5530 45%, #6b3f28 55%,
+                    #543018 65%, #7d4a2c 75%, #5c321a 85%, #6b3f28 100%);
+            border-radius: 28px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.7),
+                0 4px 16px rgba(0, 0, 0, 0.5),
+                inset 0 2px 4px rgba(255, 200, 140, 0.08),
+                inset 0 -4px 12px rgba(0, 0, 0, 0.4),
+                0 0 0 6px #3a1e10,
+                0 0 0 10px #2a1408,
+                0 0 0 14px #1a0a02;
+            overflow: hidden;
+            padding: 30px 28px 24px;
+        }
+
+        /* 木质纹理覆盖层 */
+        .wood-grain {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            border-radius: 22px;
+            background:
+                repeating-linear-gradient(2deg,
+                    transparent 0px,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.03) 3px,
+                    rgba(0, 0, 0, 0.03) 4px),
+                repeating-linear-gradient(87deg,
+                    transparent 0px,
+                    transparent 7px,
+                    rgba(139, 90, 50, 0.04) 7px,
+                    rgba(139, 90, 50, 0.04) 8px),
+                repeating-linear-gradient(175deg,
+                    transparent 0px,
+                    transparent 12px,
+                    rgba(0, 0, 0, 0.02) 12px,
+                    rgba(0, 0, 0, 0.02) 13px);
+            z-index: 1;
+        }
+
+        .metronome-inner {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+        }
+
+        /* 标题 */
+        .title-area {
+            text-align: center;
+        }
+        .title {
+            font-size: 1.5rem;
+            color: #d4b896;
+            letter-spacing: 0.08em;
+            font-weight: normal;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            font-family: "宋体",Sans Serif,Serif;
+        }
+        .subtitle {
+            font-size: 0.7rem;
+            color: #a08060;
+            letter-spacing: 0.05em;
+            margin-top: 2px;
+        }
+
+        /* 摆杆区域 */
+        .pendulum-stage {
+            position: relative;
+            width: 240px;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            background: radial-gradient(ellipse at center bottom,
+                    rgba(0, 0, 0, 0.25) 0%, transparent 70%);
+            border-radius: 50% 50% 10px 10px;
+            margin: 4px 0;
+        }
+
+        /* 刻度背景 */
+        .scale-bg {
+            position: absolute;
+            bottom: 22px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 120px;
+            background: radial-gradient(ellipse at center bottom,
+                    rgba(200, 170, 120, 0.06) 0%,
+                    transparent 65%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        /* 刻度标记 */
+        .scale-marks {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 190px;
+            height: 100px;
+            pointer-events: none;
+        }
+        .scale-mark {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 1px;
+            height: 18px;
+            background: rgba(200, 170, 130, 0.35);
+            transform-origin: bottom center;
+            border-radius: 1px;
+        }
+        .scale-mark.major {
+            height: 26px;
+            width: 1.5px;
+            background: rgba(210, 180, 140, 0.55);
+        }
+        .scale-mark.center {
+            height: 32px;
+            width: 2px;
+            background: rgba(220, 190, 150, 0.7);
+        }
+
+        /* 摆杆 */
+        .pendulum-arm {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            width: 5px;
+            height: 155px;
+            background: linear-gradient(to top,
+                    #8b7355 0%, #c4a882 15%, #d4ba90 30%,
+                    #c9af85 50%, #b89870 70%, #a07850 100%);
+            border-radius: 3px 3px 1px 1px;
+            transform-origin: bottom center;
+            box-shadow:
+                1px 0 3px rgba(0, 0, 0, 0.3),
+                -1px 0 3px rgba(0, 0, 0, 0.2),
+                0 0 8px rgba(180, 140, 100, 0.15);
+            z-index: 5;
+            transition: none;
+        }
+        .pendulum-arm::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle at 40% 35%, #e8d5b0, #b89460);
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 重锤 */
+        .pendulum-weight {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 28px;
+            height: 22px;
+            background: linear-gradient(180deg, #c9a860 0%, #8b6820 50%, #6b4a10 100%);
+            border-radius: 8px;
+            box-shadow:
+                0 3px 8px rgba(0, 0, 0, 0.5),
+                inset 0 1px 2px rgba(255, 220, 150, 0.3),
+                0 0 0 2px #5a3a18;
+            z-index: 6;
+            pointer-events: none;
+            transition: bottom 0.4s ease;
+        }
+        .pendulum-weight::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 6px;
+            right: 6px;
+            height: 4px;
+            background: rgba(255, 220, 160, 0.35);
+            border-radius: 2px;
+        }
+
+        /* 支点 */
+        .pivot-dot {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 16px;
+            background: radial-gradient(circle at 40% 35%, #d4b880, #7a5520);
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            z-index: 7;
+        }
+
+        /* BPM 显示 */
+        .bpm-display {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 16px;
+            padding: 14px 22px;
+            border: 2px solid rgba(180, 140, 100, 0.3);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+        .bpm-label {
+            font-size: 0.75rem;
+            color: #b09070;
+            letter-spacing: 0.06em;
+            font-style: italic;
+        }
+        .bpm-value {
+            font-size: 2.6rem;
+            font-weight: bold;
+            color: #f0dcc0;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            min-width: 80px;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(240, 200, 140, 0.3);
+            letter-spacing: 0.02em;
+            line-height: 1;
+        }
+        .bpm-unit {
+            font-size: 0.7rem;
+            color: #a08060;
+            letter-spacing: 0.04em;
+        }
+
+        /* 控制区 */
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 12px 22px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: inherit;
+            letter-spacing: 0.04em;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            outline: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        .btn-start {
+            background: linear-gradient(180deg, #4a8c3f 0%, #2d5a1e 100%);
+            color: #e0f0d0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 2px #1a3a10;
+            font-size: 1rem;
+            padding: 13px 30px;
+            letter-spacing: 0.06em;
+            min-width: 110px;
+        }
+        .btn-start:hover {
+            background: linear-gradient(180deg, #5a9f4d 0%, #3a6e28 100%);
+            box-shadow: 0 4px 18px rgba(60, 140, 40, 0.25), 0 0 0 2px #1a3a10;
+        }
+        .btn-start.running {
+            background: linear-gradient(180deg, #b84030 0%, #7a2018 100%);
+            color: #f0d8d0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 2px #3a1010;
+            animation: pulse-btn 2s ease-in-out infinite;
+        }
+        @keyframes pulse-btn {
+            0%,
+            100% {
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 2px #3a1010;
+            }
+            50% {
+                box-shadow: 0 4px 20px rgba(180, 50, 30, 0.3), 0 0 0 2px #3a1010, 0 0 30px rgba(200, 60, 30, 0.15);
+            }
+        }
+        .btn-tap {
+            background: rgba(180, 140, 100, 0.2);
+            color: #d4b890;
+            border: 1.5px solid rgba(180, 140, 100, 0.4);
+            font-size: 0.8rem;
+            padding: 10px 18px;
+            letter-spacing: 0.05em;
+        }
+        .btn-tap:hover {
+            background: rgba(180, 140, 100, 0.3);
+            border-color: rgba(200, 160, 120, 0.6);
+        }
+        .btn-tap.tapping {
+            background: rgba(200, 160, 120, 0.45);
+            border-color: rgba(220, 180, 140, 0.8);
+            animation: tap-flash 0.15s ease-out;
+        }
+        @keyframes tap-flash {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(0.9);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* BPM 滑块 */
+        .bpm-slider-container {
+            width: 100%;
+            max-width: 300px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bpm-slider {
+            -webkit-appearance: none;
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg,
+                    #3a1e10 0%, #6b3f28 30%, #8b5530 60%, #c9a05a 100%);
+            outline: none;
+            cursor: pointer;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .bpm-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 35%, #f0d8b0, #b88840);
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), 0 0 0 3px #5a3a18;
+            transition: transform 0.1s ease;
+        }
+        .bpm-slider::-webkit-slider-thumb:active {
+            transform: scale(1.1);
+        }
+        .bpm-slider::-moz-range-thumb {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 35%, #f0d8b0, #b88840);
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), 0 0 0 3px #5a3a18;
+            border: none;
+        }
+        .slider-min,
+        .slider-max {
+            font-size: 0.65rem;
+            color: #8b6a4a;
+            min-width: 22px;
+            text-align: center;
+        }
+
+        /* 拍子指示灯 */
+        .beat-indicators {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+        .beat-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(180, 140, 100, 0.25);
+            transition: all 0.08s ease;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+        }
+        .beat-dot.active {
+            background: #f0c860;
+            box-shadow: 0 0 16px rgba(240, 200, 100, 0.7), 0 0 32px rgba(240, 180, 60, 0.35),
+                inset 0 1px 2px rgba(255, 255, 200, 0.5);
+            transform: scale(1.3);
+        }
+        .beat-dot.downbeat {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+        }
+        .beat-dot.downbeat.active {
+            background: #ff7040;
+            box-shadow: 0 0 20px rgba(255, 100, 50, 0.8), 0 0 36px rgba(255, 80, 30, 0.4),
+                inset 0 1px 2px rgba(255, 220, 180, 0.5);
+            transform: scale(1.45);
+        }
+
+        /* 设置行 */
+        .settings-row {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        .setting-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .setting-label {
+            font-size: 0.7rem;
+            color: #a08060;
+            letter-spacing: 0.04em;
+        }
+        select {
+            padding: 8px 12px;
+            border-radius: 14px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #d4b890;
+            border: 1.5px solid rgba(180, 140, 100, 0.35);
+            font-family: inherit;
+            font-size: 0.78rem;
+            cursor: pointer;
+            outline: none;
+            letter-spacing: 0.03em;
+            -webkit-appearance: none;
+            appearance: none;
+            padding-right: 28px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c9a05a'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+        select:hover {
+            border-color: rgba(200, 160, 120, 0.6);
+        }
+        .volume-slider {
+            -webkit-appearance: none;
+            width: 70px;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(180, 140, 100, 0.3);
+            outline: none;
+            cursor: pointer;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 35%, #e8d0a8, #a07840);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        }
+        .volume-slider::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 35%, #e8d0a8, #a07840);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+            border: none;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .metronome-container {
+                padding: 20px 14px 16px;
+                border-radius: 20px;
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 0 4px #3a1e10, 0 0 0 7px #2a1408, 0 0 0 10px #1a0a02;
+            }
+            .pendulum-stage {
+                width: 180px;
+                height: 150px;
+            }
+            .pendulum-arm {
+                height: 115px;
+                width: 4px;
+            }
+            .pendulum-weight {
+                width: 22px;
+                height: 17px;
+            }
+            .bpm-value {
+                font-size: 2rem;
+                min-width: 60px;
+            }
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.8rem;
+            }
+            .btn-start {
+                padding: 11px 22px;
+                font-size: 0.9rem;
+                min-width: 90px;
+            }
+            .beat-dot {
+                width: 10px;
+                height: 10px;
+            }
+            .beat-dot.downbeat {
+                width: 13px;
+                height: 13px;
+            }
+            .scale-marks {
+                width: 150px;
+                height: 75px;
+            }
+            .scale-mark {
+                height: 12px;
+            }
+            .scale-mark.major {
+                height: 18px;
+            }
+            .scale-mark.center {
+                height: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="metronome-container">
+        <div class="wood-grain"></div>
+        <div class="metronome-inner">
+            <!-- 标题 -->
+            <div class="title-area">
+                <div class="title">仿真节拍器</div>
+                <div class="subtitle">复古机械・木质腔体</div>
+            </div>
+
+            <!-- 摆杆区域 -->
+            <div class="pendulum-stage" id="pendulumStage">
+                <div class="scale-bg"></div>
+                <div class="scale-marks" id="scaleMarks"></div>
+                <div class="pendulum-arm" id="pendulumArm">
+                    <div class="pendulum-weight" id="pendulumWeight"></div>
+                </div>
+                <div class="pivot-dot"></div>
+            </div>
+
+            <!-- BPM 显示 -->
+            <div class="bpm-display">
+                <span class="bpm-label">♪</span>
+                <span class="bpm-value" id="bpmDisplay">80</span>
+                <span class="bpm-unit">BPM</span>
+            </div>
+
+            <!-- BPM 滑块 -->
+            <div class="bpm-slider-container">
+                <span class="slider-min">40</span>
+                <input type="range" class="bpm-slider" id="bpmSlider" min="40" max="208" value="80" step="1">
+                <span class="slider-max">208</span>
+            </div>
+
+            <!-- 拍子指示灯 -->
+            <div class="beat-indicators" id="beatIndicators"></div>
+
+            <!-- 主控制按钮 -->
+            <div class="controls-row">
+                <button class="btn btn-start" id="btnStart" title="开始 / 停止">▶ 开始</button>
+                <button class="btn btn-tap" id="btnTap" title="Tap Tempo 打拍定速">🖐 打拍定速</button>
+            </div>
+
+            <!-- 设置 -->
+            <div class="settings-row">
+                <div class="setting-group">
+                    <span class="setting-label">拍号</span>
+                    <select id="timeSignature">
+                        <option value="2">2/4</option>
+                        <option value="3">3/4</option>
+                        <option value="4" selected>4/4</option>
+                        <option value="5">5/4</option>
+                        <option value="6">6/8</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <span class="setting-label">音色</span>
+                    <select id="timbreSelect">
+                        <option value="wood" selected>木质</option>
+                        <option value="metal">机械</option>
+                        <option value="muyu">木鱼</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <span class="setting-label">音量</span>
+                    <input type="range" class="volume-slider" id="volumeSlider" min="20" max="100" value="75" step="1">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== DOM 元素 ====================
+            const btnStart = document.getElementById('btnStart');
+            const btnTap = document.getElementById('btnTap');
+            const bpmDisplay = document.getElementById('bpmDisplay');
+            const bpmSlider = document.getElementById('bpmSlider');
+            const beatIndicators = document.getElementById('beatIndicators');
+            const timeSignatureSelect = document.getElementById('timeSignature');
+            const timbreSelect = document.getElementById('timbreSelect');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const pendulumArm = document.getElementById('pendulumArm');
+            const pendulumWeight = document.getElementById('pendulumWeight');
+            const scaleMarks = document.getElementById('scaleMarks');
+            const pendulumStage = document.getElementById('pendulumStage');
+
+            // ==================== 状态变量 ====================
+            let bpm = 80;
+            let timeSignature = 4; // 每小节拍数
+            let timbre = 'wood';
+            let volume = 0.75;
+            let isRunning = false;
+            let currentBeat = 0; // 当前拍（0-based）
+            let nextTime = 0;
+            let interval = 60 / bpm;
+            let schedulerTimer = null;
+            let animationId = null;
+            let startTime = 0; // 第一个重拍的时间（用于摆杆相位）
+            let animPhaseRefTime = 0; // 动画相位参考时间
+            let animPhaseRefBPM = 80; // 动画相位参考BPM
+            let accumulatedPhase = 0; // 累积相位（用于摆杆动画）
+
+            // Tap tempo 相关
+            let tapTimes = [];
+            const TAP_WINDOW = 3000; // 3秒内的tap有效
+            const TAP_MIN_COUNT = 3; // 至少3次tap才计算
+
+            // ==================== AudioContext ====================
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            let ctx = null;
+            let masterGain = null;
+            let noiseBuffer = null;
+
+            function initAudio() {
+                if (ctx) return;
+                ctx = new AudioContextClass();
+                masterGain = ctx.createGain();
+                masterGain.gain.value = volume;
+                masterGain.connect(ctx.destination);
+                // 预生成噪声buffer
+                noiseBuffer = createNoiseBuffer(0.016);
+            }
+
+            function createNoiseBuffer(duration) {
+                const len = Math.ceil(ctx.sampleRate * duration);
+                const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < len; i++) {
+                    const t = i / len;
+                    // 使用线性衰减的噪声，尾部加一点指数衰减让声音更自然
+                    const env = Math.pow(1 - t, 1.5);
+                    data[i] = (Math.random() * 2 - 1) * env;
+                }
+                return buffer;
+            }
+
+            function getTimbreParams(accent) {
+                // 返回 { noiseLen, hpFreq, bpFreq, bpQ, bodyFreq, bodyGainPeak, decayTime }
+                const accentMultiplier = accent ? 1.0 : 0.7;
+                switch (timbre) {
+        case 'wood':
+            return {
+                noiseLen: accent ? 0.011 : 0.014,
+                hpFreq: accent ? 2000 : 1600,
+                bpFreq: accent ? 1300 : 950,
+                bpQ: accent ? 3.8 : 4.5,
+                bodyFreq: accent ? 1400 : 1050,
+                bodyGainPeak: (accent ? 0.16 : 0.28) * accentMultiplier,
+                decayTime: accent ? 0.038 : 0.048,
+            };
+                    case 'metal':
+                        return {
+                            noiseLen: accent ? 0.009 : 0.007,
+                            hpFreq: accent ? 2800 : 3400,
+                            bpFreq: accent ? 2000 : 2600,
+                            bpQ: accent ? 8 : 7,
+                            bodyFreq: accent ? 2400 : 3000,
+                            bodyGainPeak: (accent ? 0.22 : 0.12) * accentMultiplier,
+                            decayTime: accent ? 0.022 : 0.016,
+                        };
+                    case 'muyu':
+            return {
+                noiseLen: accent ? 0.014 : 0.018,
+                hpFreq: accent ? 1600 : 1200,
+                bpFreq: accent ? 1000 : 700,
+                bpQ: accent ? 3.0 : 3.5,
+                bodyFreq: accent ? 1100 : 800,
+                bodyGainPeak: (accent ? 0.20 : 0.32) * accentMultiplier,
+                decayTime: accent ? 0.05 : 0.06,
+            };
+                    default:
+                        return {
+                            noiseLen: 0.012,
+                            hpFreq: 1800,
+                            bpFreq: 1200,
+                            bpQ: 4,
+                            bodyFreq: 1400,
+                            bodyGainPeak: 0.2,
+                            decayTime: 0.035,
+                        };
+                }
+            }
+
+            function makeTick(time, accent = false) {
+                if (!ctx || !masterGain || !noiseBuffer) return;
+
+                const params = getTimbreParams(accent);
+                const safeEpsilon = 0.0001;
+
+                // --- 噪声敲击层 ---
+                const noiseSource = ctx.createBufferSource();
+                noiseSource.buffer = noiseBuffer;
+
+                const hpFilter = ctx.createBiquadFilter();
+                hpFilter.type = 'highpass';
+                hpFilter.frequency.value = params.hpFreq;
+
+                const bpFilter = ctx.createBiquadFilter();
+                bpFilter.type = 'bandpass';
+                bpFilter.frequency.value = params.bpFreq;
+                bpFilter.Q.value = params.bpQ;
+
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.setValueAtTime(safeEpsilon, time);
+                noiseGain.gain.exponentialRampToValueAtTime(
+                    accent ? 0.85 : 0.55, time + 0.0008
+                );
+                noiseGain.gain.exponentialRampToValueAtTime(
+                    safeEpsilon, time + params.decayTime
+                );
+
+                noiseSource.connect(hpFilter);
+                hpFilter.connect(bpFilter);
+                bpFilter.connect(noiseGain);
+                noiseGain.connect(masterGain);
+
+                noiseSource.start(time);
+                noiseSource.stop(time + params.noiseLen + 0.005);
+
+                // --- 腔体共鸣层（正弦振荡器） ---
+                const bodyOsc = ctx.createOscillator();
+                bodyOsc.type = 'sine';
+                bodyOsc.frequency.value = params.bodyFreq;
+
+                const bodyGain = ctx.createGain();
+                bodyGain.gain.setValueAtTime(safeEpsilon, time);
+                bodyGain.gain.exponentialRampToValueAtTime(
+                    params.bodyGainPeak, time + 0.0006
+                );
+                bodyGain.gain.exponentialRampToValueAtTime(
+                    safeEpsilon, time + params.decayTime * 1.3
+                );
+
+                bodyOsc.connect(bodyGain);
+                bodyGain.connect(masterGain);
+
+                bodyOsc.start(time);
+                bodyOsc.stop(time + params.decayTime * 1.4);
+
+                // --- 第二共鸣层（微弱的高次谐波，模拟腔体复杂共振） ---
+                if (accent || timbre === 'muyu') {
+                    const bodyOsc2 = ctx.createOscillator();
+                    bodyOsc2.type = 'sine';
+                    bodyOsc2.frequency.value = params.bodyFreq * (accent ? 1.45 : 1.6);
+
+                    const bodyGain2 = ctx.createGain();
+                    bodyGain2.gain.setValueAtTime(safeEpsilon, time);
+                    bodyGain2.gain.exponentialRampToValueAtTime(
+                        params.bodyGainPeak * 0.35, time + 0.0005
+                    );
+                    bodyGain2.gain.exponentialRampToValueAtTime(
+                        safeEpsilon, time + params.decayTime * 0.8
+                    );
+
+                    bodyOsc2.connect(bodyGain2);
+                    bodyGain2.connect(masterGain);
+
+                    bodyOsc2.start(time);
+                    bodyOsc2.stop(time + params.decayTime * 0.9);
+                }
+            }
+
+            // ==================== 调度器 ====================
+            function scheduler() {
+                if (!isRunning) return;
+                const ahead = 0.15;
+                const currentInterval = 60 / bpm;
+
+                while (nextTime < ctx.currentTime + ahead) {
+                    const isDownbeat = (currentBeat % timeSignature === 0);
+                    makeTick(nextTime, isDownbeat);
+
+                    // 更新视觉指示（使用精确的时间触发CSS动画）
+                    const delayUntilBeat = (nextTime - ctx.currentTime) * 1000;
+                    scheduleVisualBeat(currentBeat, Math.max(0, delayUntilBeat));
+
+                    nextTime += currentInterval;
+                    currentBeat++;
+                }
+                schedulerTimer = setTimeout(scheduler, 20);
+            }
+
+            function scheduleVisualBeat(beatIndex, delayMs) {
+                const beatInBar = beatIndex % timeSignature;
+                setTimeout(() => {
+                    updateBeatIndicator(beatInBar);
+                    // 摆杆在声音触发时经过中心，这里微调视觉
+                    flashPendulum();
+                }, Math.max(0, delayMs));
+            }
+
+            function updateBeatIndicator(beatInBar) {
+                const dots = beatIndicators.querySelectorAll('.beat-dot');
+                dots.forEach((dot, i) => {
+                    dot.classList.remove('active');
+                    if (i === beatInBar) {
+                        dot.classList.add('active');
+                        // 短暂高亮后自动移除（让视觉更灵敏）
+                        setTimeout(() => {
+                            if (dot.classList.contains('active') &&
+                                beatIndicators.querySelectorAll('.beat-dot.active').length === 1 &&
+                                beatIndicators.querySelectorAll('.beat-dot.active')[0] === dot) {
+                                // 保持active直到下一拍
+                            }
+                        }, 80);
+                    }
+                });
+            }
+
+            function flashPendulum() {
+                pendulumArm.style.filter = 'brightness(1.35)';
+                setTimeout(() => {
+                    pendulumArm.style.filter = 'brightness(1)';
+                }, 60);
+            }
+
+            // ==================== 摆杆动画 ====================
+            function animatePendulum(timestamp) {
+                if (!ctx) {
+                    animationId = requestAnimationFrame(animatePendulum);
+                    return;
+                }
+
+                const currentTime = ctx.currentTime;
+                const omega = Math.PI * bpm / 60; // 角频率 rad/s
+
+                if (isRunning) {
+                    // 使用累积相位，BPM变化时保持连续
+                    if (animPhaseRefBPM !== bpm) {
+                        // BPM改变了，调整参考以保持相位连续
+                        const elapsed = currentTime - animPhaseRefTime;
+                        const phaseAtChange = accumulatedPhase;
+                        // 重新设置参考，使相位连续
+                        animPhaseRefTime = currentTime;
+                        animPhaseRefBPM = bpm;
+                        accumulatedPhase = phaseAtChange;
+                    }
+
+                    const dt = Math.min(currentTime - animPhaseRefTime, 0.1); // 限制最大步长
+                    if (dt > 0 && dt < 0.5) {
+                        accumulatedPhase += omega * dt;
+                        animPhaseRefTime = currentTime;
+                    } else if (dt >= 0.5) {
+                        // 可能出现标签页失焦后恢复，直接使用当前时间计算
+                        accumulatedPhase = omega * (currentTime - startTime);
+                        animPhaseRefTime = currentTime;
+                    }
+                } else {
+                    // 停止时缓慢归位
+                    accumulatedPhase *= 0.85;
+                    if (Math.abs(accumulatedPhase) < 0.001) accumulatedPhase = 0;
+                    animPhaseRefTime = currentTime;
+                    animPhaseRefBPM = bpm;
+                }
+
+                const maxAngle = 26; // 最大摆角（度）
+                const angle = maxAngle * Math.sin(accumulatedPhase);
+                pendulumArm.style.transform = `rotate(${angle}deg)`;
+
+                // 更新重锤位置
+                updateWeightPosition();
+
+                animationId = requestAnimationFrame(animatePendulum);
+            }
+
+            function updateWeightPosition() {
+                // 重锤位置与BPM相关：BPM低→重锤靠上（远离支点），BPM高→重锤靠下
+                const bpmMin = 40;
+                const bpmMax = 208;
+                const clampedBPM = Math.max(bpmMin, Math.min(bpmMax, bpm));
+                // 使用1/BPM²关系映射到摆杆的20%-88%位置
+                const factor = 1 / (clampedBPM * clampedBPM);
+                const factorMin = 1 / (bpmMax * bpmMax);
+                const factorMax = 1 / (bpmMin * bpmMin);
+                const normalized = (factor - factorMin) / (factorMax - factorMin);
+                const positionPercent = 20 + normalized * 68; // 20%到88%
+                pendulumWeight.style.bottom = positionPercent + '%';
+            }
+
+            // ==================== 生成刻度标记 ====================
+            function createScaleMarks() {
+                scaleMarks.innerHTML = '';
+                const totalMarks = 21; // -10到+10
+                const maxAngle = 28;
+                for (let i = 0; i < totalMarks; i++) {
+                    const mark = document.createElement('div');
+                    const angle = -maxAngle + (i / (totalMarks - 1)) * 2 * maxAngle;
+                    mark.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+                    mark.style.transformOrigin = 'bottom center';
+
+                    if (i === Math.floor(totalMarks / 2)) {
+                        mark.classList.add('scale-mark', 'center');
+                    } else if (i % 2 === 0) {
+                        mark.classList.add('scale-mark', 'major');
+                    } else {
+                        mark.classList.add('scale-mark');
+                    }
+                    scaleMarks.appendChild(mark);
+                }
+            }
+
+            // ==================== 拍子指示灯 ====================
+            function createBeatIndicators() {
+                beatIndicators.innerHTML = '';
+                for (let i = 0; i < timeSignature; i++) {
+                    const dot = document.createElement('div');
+                    dot.classList.add('beat-dot');
+                    if (i === 0) dot.classList.add('downbeat');
+                    beatIndicators.appendChild(dot);
+                }
+                currentBeat = 0;
+                nextTime = ctx ? ctx.currentTime + 0.05 : 0;
+            }
+
+            // ==================== 开始/停止 ====================
+            async function toggleRunning() {
+                if (!ctx) initAudio();
+
+                if (ctx.state === 'suspended') {
+                    await ctx.resume();
+                }
+
+                if (!isRunning) {
+                    // 开始
+                    isRunning = true;
+                    currentBeat = 0;
+                    nextTime = ctx.currentTime + 0.08;
+                    startTime = nextTime;
+                    animPhaseRefTime = ctx.currentTime;
+                    animPhaseRefBPM = bpm;
+                    accumulatedPhase = 0;
+                    interval = 60 / bpm;
+                    masterGain.gain.value = volume;
+                    btnStart.textContent = '■ 停止';
+                    btnStart.classList.add('running');
+                    updateBeatIndicator(-1); // 清除所有指示灯
+                    scheduler();
+                } else {
+                    // 停止
+                    isRunning = false;
+                    if (schedulerTimer) clearTimeout(schedulerTimer);
+                    schedulerTimer = null;
+                    btnStart.textContent = '▶ 开始';
+                    btnStart.classList.remove('running');
+                    // 清除指示灯
+                    const dots = beatIndicators.querySelectorAll('.beat-dot');
+                    dots.forEach(d => d.classList.remove('active'));
+                    currentBeat = 0;
+                }
+            }
+
+            // ==================== Tap Tempo ====================
+            function handleTap() {
+                if (!ctx) initAudio();
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const now = performance.now();
+                tapTimes.push(now);
+
+                // 清理过期记录
+                while (tapTimes.length > 0 && now - tapTimes[0] > TAP_WINDOW) {
+                    tapTimes.shift();
+                }
+
+                // 视觉反馈
+                btnTap.classList.add('tapping');
+                setTimeout(() => btnTap.classList.remove('tapping'), 150);
+
+                // 播放一个轻的点击声作为反馈
+                if (ctx && masterGain) {
+                    const feedbackTime = ctx.currentTime + 0.005;
+                    const fbNoise = ctx.createBufferSource();
+                    fbNoise.buffer = noiseBuffer;
+                    const fbGain = ctx.createGain();
+                    fbGain.gain.setValueAtTime(0.0001, feedbackTime);
+                    fbGain.gain.exponentialRampToValueAtTime(0.25, feedbackTime + 0.0005);
+                    fbGain.gain.exponentialRampToValueAtTime(0.0001, feedbackTime + 0.02);
+                    const fbHp = ctx.createBiquadFilter();
+                    fbHp.type = 'highpass';
+                    fbHp.frequency.value = 2500;
+                    fbNoise.connect(fbHp).connect(fbGain).connect(masterGain);
+                    fbNoise.start(feedbackTime);
+                    fbNoise.stop(feedbackTime + 0.025);
+                }
+
+                if (tapTimes.length >= TAP_MIN_COUNT) {
+                    // 计算平均间隔
+                    let totalInterval = 0;
+                    for (let i = 1; i < tapTimes.length; i++) {
+                        totalInterval += tapTimes[i] - tapTimes[i - 1];
+                    }
+                    const avgIntervalMs = totalInterval / (tapTimes.length - 1);
+                    let newBPM = Math.round(60000 / avgIntervalMs);
+                    newBPM = Math.max(40, Math.min(208, newBPM));
+                    bpm = newBPM;
+                    bpmSlider.value = bpm;
+                    bpmDisplay.textContent = bpm;
+                    interval = 60 / bpm;
+
+                    // 更新重锤位置
+                    updateWeightPosition();
+
+                    // 如果正在运行，重置调度
+                    if (isRunning && ctx) {
+                        currentBeat = 0;
+                        nextTime = ctx.currentTime + 0.05;
+                        startTime = nextTime;
+                        accumulatedPhase = 0;
+                        animPhaseRefTime = ctx.currentTime;
+                        animPhaseRefBPM = bpm;
+                    }
+                }
+            }
+
+            // ==================== 事件监听 ====================
+            btnStart.addEventListener('click', toggleRunning);
+
+            btnTap.addEventListener('click', handleTap);
+
+            bpmSlider.addEventListener('input', () => {
+                bpm = parseInt(bpmSlider.value);
+                bpmDisplay.textContent = bpm;
+                interval = 60 / bpm;
+                updateWeightPosition();
+                if (isRunning && ctx) {
+                    // 重置调度以立即适应新BPM
+                    currentBeat = currentBeat % timeSignature;
+                    nextTime = ctx.currentTime + 0.05;
+                    // 保持相位连续
+                    animPhaseRefBPM = bpm;
+                }
+            });
+
+            timeSignatureSelect.addEventListener('change', () => {
+                timeSignature = parseInt(timeSignatureSelect.value);
+                createBeatIndicators();
+                if (isRunning && ctx) {
+                    currentBeat = 0;
+                    nextTime = ctx.currentTime + 0.05;
+                    startTime = nextTime;
+                    accumulatedPhase = 0;
+                    animPhaseRefTime = ctx.currentTime;
+                    animPhaseRefBPM = bpm;
+                }
+            });
+
+            timbreSelect.addEventListener('change', () => {
+                timbre = timbreSelect.value;
+            });
+
+            volumeSlider.addEventListener('input', () => {
+                volume = parseInt(volumeSlider.value) / 100;
+                if (masterGain) {
+                    masterGain.gain.value = volume;
+                }
+            });
+
+            // 键盘快捷键
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    toggleRunning();
+                } else if (e.code === 'KeyT' && !e.target.closest('input, select')) {
+                    e.preventDefault();
+                    handleTap();
+                } else if (e.code === 'ArrowUp' && !e.target.closest('input, select')) {
+                    e.preventDefault();
+                    bpm = Math.min(208, bpm + 1);
+                    bpmSlider.value = bpm;
+                    bpmDisplay.textContent = bpm;
+                    interval = 60 / bpm;
+                    updateWeightPosition();
+                } else if (e.code === 'ArrowDown' && !e.target.closest('input, select')) {
+                    e.preventDefault();
+                    bpm = Math.max(40, bpm - 1);
+                    bpmSlider.value = bpm;
+                    bpmDisplay.textContent = bpm;
+                    interval = 60 / bpm;
+                    updateWeightPosition();
+                }
+            });
+
+            // ==================== 初始化 ====================
+            function init() {
+                createScaleMarks();
+                createBeatIndicators();
+                updateWeightPosition();
+                bpmDisplay.textContent = bpm;
+                bpmSlider.value = bpm;
+                volumeSlider.value = Math.round(volume * 100);
+                // 启动动画循环（即使在停止状态也渲染摆杆）
+                animationId = requestAnimationFrame(animatePendulum);
+            }
+
+            // 页面卸载时清理
+            window.addEventListener('beforeunload', () => {
+                isRunning = false;
+                if (schedulerTimer) clearTimeout(schedulerTimer);
+                if (animationId) cancelAnimationFrame(animationId);
+                if (ctx) {
+                    ctx.close().catch(() => {});
+                }
+            });
+
+            // 页面可见性变化时处理
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && isRunning && ctx) {
+                    // 标签页隐藏时，调整相位参考
+                    animPhaseRefTime = ctx.currentTime;
+                }
+                if (!document.hidden && isRunning && ctx) {
+                    // 恢复时重新同步
+                    animPhaseRefTime = ctx.currentTime;
+                    animPhaseRefBPM = bpm;
+                }
+            });
+
+            init();
+
+            console.log('🪵 机械节拍器已就绪');
+            console.log('  - 按空格键 开始/停止');
+            console.log('  - 按 T 键 打拍定速');
+            console.log('  - 按 ↑↓ 调整BPM');
+            console.log('  - 音色选项：木质 | 机械 | 木鱼');
+            console.log('  - 声音结构：瞬态噪声敲击 + 腔体正弦共鸣 + 滤波塑形');
+        })();
+    </script>
+</body>
+</html>
