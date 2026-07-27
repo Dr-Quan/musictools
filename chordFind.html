@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>和弦查找器 – 离线版</title>
+    <style>
+	
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Open Sans', 'Segoe UI', sans-serif;
+            background: #fafafa;
+            color: #333;
+            padding: 20px;
+			height: auto;
+        }
+        .app-container {
+            max-width: 1400px;
+			height: auto;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        .chord-selector {
+            margin-bottom: 30px;
+        }
+        .selector-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 15px 30px;
+        }
+        .selector-chord-name {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            font-size: 2.2rem;
+            font-weight: 600;
+            min-width: 160px;
+        }
+        .selector-root-alter {
+            font-size: 4rem;
+            color: #72ac51;
+        }
+        .selector-minor {
+            color: #72ac51;
+            font-size: 3rem;
+            margin-left: 2px;
+        }
+        .selector-interval {
+            color: #888;
+            font-size: 1.4rem;
+			flex-basis: 100%;
+			margin-top: 4px;
+            margin-left: 0;
+        }
+        .selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .selector select {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .selector select:hover {
+            border-color: #72ac51;
+        }
+        #typeSelect {
+            width: 130px;
+        }
+        .chord-notes {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-basis: 100%;
+            margin-top: 5px;
+        }
+        .chord-notes-text {
+            font-weight: 600;
+            color: #555;
+            white-space: nowrap;
+        }
+        .notes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .notes li {
+            background: #72ac51;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .diagrams-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 16px;
+            margin-top: 25px;
+        }
+        @media (max-width: 900px) {
+            .diagrams-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 12px;
+            }
+        }
+        @media (max-width: 500px) {
+            .diagrams-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .diagram-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .diagram-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+        }
+        .diagram-card svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .diagram-card .position-label {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 4px;
+        }
+        .no-chord-message {
+            color: #999;
+            font-style: italic;
+            padding: 20px 0;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="chord-selector">
+            <div class="selector-wrap">
+                <div class="selector-chord-name">
+                    <span class="selector-root-alter" id="chordNameDisplay">C</span>
+                    <span class="selector-minor" id="minorDisplay"></span>
+                    <span class="selector-interval" id="intervalDisplay">大三和弦</span>
+                </div>
+                <div class="selector">
+                    <select id="rootSelect">
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                    </select>
+                    <select id="alterSelect">
+                        <option value="">♮</option>
+                        <option value="#">♯</option>
+                        <option value="b">♭</option>
+                    </select>
+                    <select id="typeSelect">
+                        <!-- JS 动态填充 -->
+                    </select>
+                </div>
+                <div class="chord-notes" id="notesContainer">
+                    <span class="chord-notes-text">和弦的音：</span>
+                    <ul class="notes" id="notesList"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="diagrams-grid" id="diagramsGrid">
+            <!-- SVG 动态插入 -->
+        </div>
+    </div>
+
+    <script>
+        // ---------- 和弦类型定义（完整 HTML value）----------
+        const chordTypes = [
+            { name: "", minor: "", value: "", label: "大三和弦" },
+            { name: "m", minor: "m", value: "m", label: "小三和弦" },
+            { name: "dim", minor: "", value: '<sup style="top: 0;"><svg height="30" width="30"><circle cx="13" cy="13" r="10" stroke="#72ac51" stroke-width="3" fill="#fff" /></svg></sup>', label: "减三和弦" },
+            { name: "aug", minor: "", value: '<sup style="font-size: 40px;">+</sup>', label: "增三和弦" },
+            { name: "7", minor: "", value: "<sup>7</sup>", label: "属七和弦" },
+            { name: "m7", minor: "m", value: "m<sup>7</sup>", label: "小七和弦" },
+            { name: "Maj7", minor: "", value: "<sup>maj7</sup>", label: "大七和弦" },
+            { name: "dim7", minor: "", value: "<sup>dim7</sup>", label: "减七和弦" },
+            { name: "m7b5", minor: "m", value: "m<sup>7(<span class='--accidentals'>♭</span>5)</sup>", label: "半减七和弦" },
+            { name: "sus4", minor: "", value: "<sup>sus4</sup>", label: "挂四和弦" },
+            { name: "sus2", minor: "", value: "<sup>sus2</sup>", label: "挂二和弦" },
+            { name: "7sus4", minor: "", value: "<sup>7sus4</sup>", label: "属七挂四和弦" },
+            { name: "6", minor: "", value: "<sup>6</sup>", label: "大六和弦" },
+            { name: "m6", minor: "m", value: "m<sup>6</sup>", label: "小六和弦" },
+            { name: "9", minor: "", value: "<sup>9</sup>", label: "属九和弦" },
+            { name: "m9", minor: "m", value: "m<sup>9</sup>", label: "小九和弦" },
+            { name: "Maj9", minor: "", value: "<sup>maj9</sup>", label: "大九和弦" },
+            { name: "11", minor: "", value: "<sup>11</sup>", label: "属十一和弦" },
+            { name: "m11", minor: "m", value: "m<sup>11</sup>", label: "小十一和弦" },
+            { name: "Maj11", minor: "", value: "<sup>maj11</sup>", label: "大十一和弦" },
+            { name: "13", minor: "", value: "<sup>13</sup>", label: "属十三和弦" },
+            { name: "m13", minor: "m", value: "m<sup>13</sup>", label: "小十三和弦" },
+            { name: "Maj13", minor: "", value: "<sup>maj13</sup>", label: "大十三和弦" },
+            { name: "add9", minor: "", value: "<sup>add9</sup>", label: "加九和弦" },
+            { name: "69", minor: "", value: "<sup>6/9</sup>", label: "六九和弦" },
+            { name: "5", minor: "", value: "<sup>5</sup>", label: "强力和弦" },
+            { name: "7b5", minor: "", value: '<sup>7(<span class="--accidentals">♭</span>5)</sup>', label: "属七降五和弦" },
+            { name: "7b9", minor: "", value: '<sup>7(<span class="--accidentals">♭</span>9)</sup>', label: "属七降九和弦" },
+            { name: "7#9", minor: "", value: '<sup>7(<span class="--accidentals">♯</span>9)</sup>', label: "属七升九和弦" }
+        ];
+
+        const typeSelect = document.getElementById('typeSelect');
+        chordTypes.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.name;
+            opt.textContent = t.label;
+            typeSelect.appendChild(opt);
+        });
+
+        // ---------- 全局状态 ----------
+        let chordsData = null;
+        let currentFingerings = [];
+
+        const rootSelect = document.getElementById('rootSelect');
+        const alterSelect = document.getElementById('alterSelect');
+        const chordNameDisplay = document.getElementById('chordNameDisplay');
+        const minorDisplay = document.getElementById('minorDisplay');
+        const intervalDisplay = document.getElementById('intervalDisplay');
+        const notesContainer = document.getElementById('notesList');
+        const diagramsGrid = document.getElementById('diagramsGrid');
+
+        // ---------- 等音转换表（升号→降号，特殊转换）----------
+        const enharmonic = {
+            'C#': 'Db',
+            'D#': 'Eb',
+            'F#': 'Gb',
+            'G#': 'Ab',
+            'A#': 'Bb',
+            'E#': 'F',
+            'B#': 'C',
+            'Cb': 'B',
+            'Fb': 'E'
+        };
+
+        function getChordKey(root, alter, type) {
+            const base = root + alter;
+            // 如果是升号，转成对应的降号；降号保持原样；特殊情况 Cb→B, Fb→E
+            const normalized = enharmonic[base] || base;
+            return (normalized + type).trim();
+        }
+
+        // 横按检测（全局匹配，含跳指）
+        function parseBarres(p, f) {
+            const NUM_STRINGS = 6;
+            const fingers = new Array(NUM_STRINGS).fill(0);
+            let fIndex = 0;
+            for (let i = 0; i < NUM_STRINGS; i++) {
+                if (p[i] !== 'x' && p[i] !== '0') {
+                    fingers[i] = parseInt(f[fIndex]) || 0;
+                    fIndex++;
+                }
+            }
+
+            const fingerMap = {};
+            for (let i = 0; i < NUM_STRINGS; i++) {
+                if (p[i] === 'x' || p[i] === '0') continue;
+                const finger = fingers[i];
+                const fret = parseInt(p[i]);
+                if (!fingerMap[finger]) fingerMap[finger] = [];
+                fingerMap[finger].push({ string: i, fret: fret });
+            }
+
+            const barres = [];
+            for (const [finger, positions] of Object.entries(fingerMap)) {
+                if (positions.length < 2) continue;
+                const allSameFret = positions.every(pos => pos.fret === positions[0].fret);
+                if (!allSameFret) continue;
+                const strings = positions.map(pos => pos.string);
+                const from = Math.min(...strings);
+                const to = Math.max(...strings);
+                if (to > from) {
+                    barres.push({
+                        fret: positions[0].fret,
+                        finger: parseInt(finger),
+                        from: from,
+                        to: to
+                    });
+                }
+            }
+            return { barres, fingers };
+        }
+
+        function createSvg(fingering) {
+            const pStr = fingering.p;
+            const fStr = fingering.f || '';
+            const p = pStr.split(',');
+            const { barres, fingers } = parseBarres(p, fStr);
+
+            const validFrets = p.filter(v => v !== 'x' && v !== '0').map(Number);
+            const maxFret = validFrets.length ? Math.max(...validFrets) : 1;
+            const minFret = validFrets.length ? Math.min(...validFrets) : 1;
+            let startFret = 1;
+            if (maxFret > 4) startFret = minFret;
+            if (startFret < 1) startFret = 1;
+
+            const numFrets = 4;
+            const fretHeight = 49;
+            const stringSpacing = 35;
+            const offsetX = 30;
+            const offsetY = 55;
+            const svgWidth = 235;
+            const svgHeight = 271;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+
+            // 弦
+            for (let i = 0; i < 6; i++) {
+                const x = offsetX + i * stringSpacing;
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x);
+                line.setAttribute('y1', offsetY);
+                line.setAttribute('x2', x);
+                line.setAttribute('y2', offsetY + numFrets * fretHeight);
+                line.setAttribute('stroke', 'black');
+                line.setAttribute('stroke-width', '1');
+                svg.appendChild(line);
+            }
+
+            // 品丝
+            for (let f = 0; f <= numFrets; f++) {
+                const y = offsetY + f * fretHeight;
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', offsetX);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', offsetX + 5 * stringSpacing);
+                line.setAttribute('y2', y);
+                line.setAttribute('stroke', 'black');
+                line.setAttribute('stroke-width', f === 0 ? '4' : '1');
+                svg.appendChild(line);
+            }
+
+            if (startFret > 1) {
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', offsetX - 15);
+                text.setAttribute('y', offsetY + fretHeight * 0.5 + 5);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', '16');
+                text.setAttribute('fill', 'black');
+                text.textContent = startFret;
+                svg.appendChild(text);
+            }
+
+            function getY(fret) {
+                if (fret === '0' || fret === 'x') return offsetY - 20;
+                const relativeFret = parseInt(fret) - startFret + 1;
+                return offsetY + relativeFret * fretHeight - fretHeight / 2;
+            }
+
+            // 横按条
+            barres.forEach(bar => {
+                const x = offsetX + bar.from * stringSpacing - 10;
+                const width = (bar.to - bar.from) * stringSpacing + 20;
+                const y = getY(bar.fret.toString()) - 16;
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', x);
+                rect.setAttribute('y', y);
+                rect.setAttribute('width', width);
+                rect.setAttribute('height', '32');
+                rect.setAttribute('rx', '16');
+                rect.setAttribute('fill', '#72ac51');
+                rect.setAttribute('stroke', 'none');
+                svg.appendChild(rect);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x + width / 2);
+                text.setAttribute('y', y + 22);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('fill', 'white');
+                text.setAttribute('font-size', '16');
+                text.textContent = bar.finger;
+                svg.appendChild(text);
+            });
+
+            // 单音
+            for (let i = 0; i < 6; i++) {
+                const fret = p[i];
+                const x = offsetX + i * stringSpacing;
+
+                if (fret === 'x') {
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    g.setAttribute('transform', `translate(${x - 12}, ${offsetY - 33})`);
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', 'M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z');
+                    path.setAttribute('stroke', 'black');
+                    path.setAttribute('fill', 'none');
+                    g.appendChild(path);
+                    svg.appendChild(g);
+                } else if (fret === '0') {
+                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    circle.setAttribute('cx', x);
+                    circle.setAttribute('cy', offsetY - 20);
+                    circle.setAttribute('r', '8');
+                    circle.setAttribute('fill', 'none');
+                    circle.setAttribute('stroke', 'black');
+                    circle.setAttribute('stroke-width', '3');
+                    svg.appendChild(circle);
+                } else {
+                    const isBarred = barres.some(b => b.from <= i && i <= b.to && parseInt(fret) === b.fret && fingers[i] === b.finger);
+                    if (!isBarred) {
+                        const y = getY(fret);
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.setAttribute('cx', x);
+                        circle.setAttribute('cy', y);
+                        circle.setAttribute('r', '16');
+                        circle.setAttribute('fill', '#72ac51');
+                        svg.appendChild(circle);
+
+                        if (fingers[i]) {
+                            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            text.setAttribute('x', x);
+                            text.setAttribute('y', y + 6);
+                            text.setAttribute('text-anchor', 'middle');
+                            text.setAttribute('fill', 'white');
+                            text.setAttribute('font-size', '16');
+                            text.textContent = fingers[i];
+                            svg.appendChild(text);
+                        }
+                    }
+                }
+            }
+            return svg;
+        }
+
+        async function loadData() {
+            try {
+                const res = await fetch('chords-guitar-ukulele.json');
+                chordsData = await res.json();
+                updateChord();
+            } catch (e) {
+                diagramsGrid.innerHTML = '<div class="no-chord-message">无法加载 chords-guitar-ukulele.json</div>';
+            }
+        }
+
+        function updateChord() {
+            if (!chordsData) return;
+
+            const root = rootSelect.value;
+            const alter = alterSelect.value;
+            const type = typeSelect.value;
+            const key = getChordKey(root, alter, type);
+
+            const alterSign = alter === '#' ? '♯' : alter === 'b' ? '♭' : '';
+            chordNameDisplay.innerHTML = root + (alterSign ? `${alterSign}` : '');
+
+            const chordTypeObj = chordTypes.find(t => t.name === type) || {};
+            minorDisplay.innerHTML = chordTypeObj.value || '';
+            intervalDisplay.textContent = chordTypeObj.label || '';
+
+            notesContainer.innerHTML = '';
+
+            const guitarData = chordsData.EADGBE;
+            if (!guitarData || !guitarData[key]) {
+                currentFingerings = [];
+                diagramsGrid.innerHTML = '<div class="no-chord-message">未找到该和弦的指法</div>';
+                return;
+            }
+
+            currentFingerings = guitarData[key];
+            renderAllDiagrams();
+        }
+
+        function renderAllDiagrams() {
+            diagramsGrid.innerHTML = '';
+            if (!currentFingerings.length) {
+                diagramsGrid.innerHTML = '<div class="no-chord-message">无指法数据</div>';
+                return;
+            }
+
+            currentFingerings.forEach((fingering, idx) => {
+                const card = document.createElement('div');
+                card.className = 'diagram-card';
+                card.appendChild(createSvg(fingering));
+                const label = document.createElement('div');
+                label.className = 'position-label';
+                card.appendChild(label);
+                diagramsGrid.appendChild(card);
+            });
+        }
+
+        rootSelect.addEventListener('change', updateChord);
+        alterSelect.addEventListener('change', updateChord);
+        typeSelect.addEventListener('change', updateChord);
+
+        loadData();
+    </script>
+</body>
+</html>
