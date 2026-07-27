@@ -8,3 +8,5 @@
 [测试调音器](https://dr-quan.github.io/musictools/tuner_test.html)
 
 [仿真机械节拍器](https://dr-quan.github.io/musictools/woodMetronome.html)
+
+[吉他和弦查询](https://dr-quan.github.io/musictools/chordFind.html)
