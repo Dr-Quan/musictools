@@ -68,7 +68,7 @@
             align-items: center;
         }
         .selector select {
-            padding: 8px 14px;
+            padding: 5px 3px;
             border-radius: 6px;
             border: 1px solid #ddd;
             font-size: 1rem;
@@ -143,6 +143,7 @@
             align-items: center;
             justify-content: center;
             transition: transform 0.2s, box-shadow 0.2s;
+			overflow: visible;
         }
         .diagram-card:hover {
             transform: translateY(-2px);
@@ -346,6 +347,7 @@
 
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+			svg.style.overflow = 'visible';
 
             // 弦
             for (let i = 0; i < 6; i++) {
