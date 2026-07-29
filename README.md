@@ -5,8 +5,10 @@
 
 [仿真调音节拍器](https://dr-quan.github.io/musictools/tunerMetronome.html)
 
-[测试调音器](https://dr-quan.github.io/musictools/tuner_test.html)
-
 [仿真机械节拍器](https://dr-quan.github.io/musictools/woodMetronome.html)
+
+[极简节拍器](https://dr-quan.github.io/musictools/metronome.html)
+
+[测试调音器](https://dr-quan.github.io/musictools/tuner_test.html)
 
 [吉他和弦查询](https://dr-quan.github.io/musictools/chordFind.html)
