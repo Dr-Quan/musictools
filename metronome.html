@@ -1,0 +1,3399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>METRONOME</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #fff;
+            font-family: "Times New Roman", "PingFang SC", "Noto Serif SC", serif;
+            color: #222;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* ==================== 夜间模式 ==================== */
+        body.night-mode {
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+        body.night-mode svg path[fill="#222"],
+        body.night-mode svg path[fill="#000"],
+        body.night-mode svg line[stroke="#333333"],
+        body.night-mode svg path[fill="#333333"],
+        body.night-mode svg text[fill="#333333"] {
+            fill: #ffffff !important;
+        }
+
+        .grey-text,
+        .preset-label,
+        .timer-hint {
+            color: #888888 !important;
+        }
+
+        body.night-mode .ctrl-btn {
+            color: #ddd;
+        }
+
+        body.night-mode .ctrl-btn:active {
+            background: #333;
+        }
+
+        body.night-mode .adjust {
+            color: #ddd;
+        }
+
+        body.night-mode .divider {
+            border-top-color: #444;
+        }
+
+        body.night-mode .menu-item:not(:last-child)::after {
+            background: #444;
+        }
+
+        body.night-mode .menu-sub,
+        body.night-mode .bpm-unit {
+            color: #aaa;
+        }
+
+        body.night-mode .exit-edit-btn,
+        body.night-mode .key-btn,
+        body.night-mode .tap-btn,
+        body.night-mode .ts-stepper-btn {
+            border-color: #555;
+            color: #fff;
+            background: #1e1e1e;
+        }
+
+        body.night-mode .modal-content,
+        body.night-mode .timer-modal-content,
+        body.night-mode .sync-modal-content,
+        body.night-mode .ts-modal-content,
+        body.night-mode .sound-modal-content,
+        body.night-mode .train-modal-content {
+            background-color: #1e1e1e;
+        }
+
+        body.night-mode .modal-btn,
+        body.night-mode .preset-item,
+        body.night-mode .timer-header span,
+        body.night-mode .ts-header span,
+        body.night-mode .sound-header span,
+        body.night-mode .train-header span,
+        body.night-mode .ts-number,
+        body.night-mode .ts-preset-item,
+        body.night-mode .sound-preset-item {
+            color: #fff;
+        }
+
+        body.night-mode .timer-input-box input {
+            border-color: #fff;
+            color: #fff;
+        }
+
+        body.night-mode .stop-square {
+            background-color: #fff;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 430px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding: 0px 15px;
+        }
+
+        /* ---------- 矩阵舞台 ---------- */
+        .matrix-stage {
+            height: 320px;
+            grid-template-columns: 32px 1fr 32px;
+            align-items: center;
+            justify-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .matrix-viewport {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .matrix-wrapper {
+            display: flex;
+            width: 100%;
+            max-width: 100%;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            box-sizing: border-box;
+        }
+
+        .matrix-col {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            cursor: default !important;
+        }
+
+        .ctrl-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: cursive, "Pingfang SC", sans-serif;
+            font-size: 30px;
+            line-height: 1;
+            cursor: pointer;
+            user-select: none;
+            color: #333;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .ctrl-btn:active {
+            background: #f0f0f0;
+        }
+
+        .ctrl-btn.hidden {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .col-side-btn {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            font-size: 45px;
+            z-index: 2;
+        }
+
+        .beat-node {
+            width: 100%;
+            max-width: 35px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: center center;
+            transition: transform 0.2s ease-out;
+        }
+
+        .beat-node svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: pointer;
+            transition: transform 0.08s ease-out;
+            transform-origin: center center;
+        }
+
+        .beat-node.pulse svg {
+            transform: scale(1.35);
+        }
+
+        /* 编辑模式 */
+        .edit-controls {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .edit-controls.active {
+            display: flex;
+        }
+
+        .edit-tips {
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #222;
+            margin-bottom: 15px;
+        }
+
+        body.night-mode .edit-tips {
+            color: #fff;
+        }
+
+        .exit-edit-btn {
+            width: 100%;
+            padding: 12px 0;
+            border: 1px solid #333;
+            background: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        /* 运行状态仪表盘 */
+        .running-dashboard {
+            display: none;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            flex: 1;
+            padding: 20px;
+            min-height: 200px;
+        }
+
+        .running-dashboard.active {
+            display: flex;
+        }
+
+        .tempo-info {
+            font-size: 36px;
+            font-family: "PingFang SC", "Noto Serif SC", serif;
+        }
+
+        .tempo-info span {
+            display: inline-block;
+        }
+
+        .tempo-info .note-symbol {
+            font-size: 32px;
+            margin: 0 6px;
+            vertical-align: middle;
+        }
+
+        .countdown-container {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .countdown-hint {
+            font-size: 20px;
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        .countdown-time {
+            font-size: 72px;
+            font-weight: 300;
+            line-height: 1.1;
+            letter-spacing: 3px;
+            text-align: center;
+        }
+
+        /* BPM 面板 */
+        .tempo-section {
+            margin-top: auto;
+            text-align: center;
+        }
+
+        .tempo-section.hidden {
+            display: none;
+        }
+
+        .tempo-name {
+            font-size: 32px;
+            font-weight: 400;
+        }
+
+        .bpm-row {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .adjust {
+            border: none;
+            background: none;
+            font-size: 40px;
+            color: #333;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .bpm-number {
+            font-size: 72px;
+            line-height: 0.9;
+            font-weight: 700;
+            min-width: 130px;
+            text-align: center;
+        }
+
+        .bpm-unit {
+            margin-top: 8px;
+            font-size: 12px;
+            letter-spacing: 4px;
+            color: #666;
+        }
+
+        .divider {
+            margin: 25px 10px 15px;
+            border-top: 2px solid #eee;
+        }
+
+        .divider.hidden {
+            display: none;
+        }
+
+        .menu {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .menu.hidden {
+            display: none;
+        }
+
+        .menu-item {
+            flex: 1;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .menu-item:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 5px;
+            width: 1px;
+            height: 40px;
+            background: #eee;
+        }
+
+        .menu-title {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .menu-sub {
+            color: #777;
+            font-size: 12px;
+        }
+
+        /* 底部控制栏 */
+        .bottom {
+            margin-top: 25px;
+            padding: 10px 20px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bottom-group-setup,
+        .bottom-group-running {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bottom-group-running {
+            display: none;
+        }
+
+        .bottom-group-running.active {
+            display: flex;
+        }
+
+        .bottom-item {
+            width: 80px;
+            text-align: center;
+            font-size: 18px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .play-btn {
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            margin: 0 auto;
+        }
+
+        .play-btn svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .stop-btn {
+            width: 48px;
+            height: 48px;
+            cursor: pointer;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stop-square {
+            width: 26.25px;
+            height: 26.25px;
+            background-color: #222;
+            transition: background-color 0.3s;
+        }
+
+        /* ---------- 通用弹窗 Modal ---------- */
+        .modal-overlay,
+        .timer-modal,
+        .ts-modal,
+        .sync-modal,
+        .sound-modal,
+        .train-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 999;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .modal-overlay.active,
+        .timer-modal.active,
+        .ts-modal.active,
+        .sync-modal.active,
+        .sound-modal.active,
+        .train-modal.active {
+            display: flex;
+        }
+
+        .modal-content,
+        .timer-modal-content,
+        .ts-modal-content,
+        .sync-modal-content,
+        .sound-modal-content,
+        .train-modal-content {
+            background: #fff;
+            width: 100%;
+            max-width: 430px;
+            border-top-left-radius: 16px;
+            border-top-right-radius: 16px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .modal-header,
+        .timer-header,
+        .ts-header,
+        .sync-header,
+        .sound-header,
+        .train-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .modal-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .modal-display {
+            text-align: center;
+            font-size: 42px;
+            font-weight: bold;
+            height: 50px;
+        }
+
+        .tap-btn {
+            width: 100%;
+            height: 45px;
+            border: 1px solid #333;
+            background: #fff;
+            font-size: 18px;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .key-btn {
+            height: 48px;
+            border: 1px solid #ddd;
+            background: #fff;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* 定时弹窗 */
+        .timer-input-box {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 30px 0;
+            gap: 10px;
+        }
+
+        .timer-input-box input {
+            width: 80px;
+            height: 50px;
+            border: 1px solid #222;
+            text-align: center;
+            font-size: 24px;
+            background: transparent;
+            color: inherit;
+            border-radius: 4px;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .preset-item {
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px;
+            user-select: none;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+
+        .preset-item:active {
+            background: #f0f0f0;
+        }
+
+        /* ---------- 拍号设置弹窗 UI ---------- */
+        .ts-picker-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0 30px;
+        }
+
+        .ts-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            margin: 5px 0;
+        }
+
+        .ts-stepper-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #333;
+            background: transparent;
+            font-size: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .ts-number {
+            font-size: 28px;
+            width: 36px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .ts-line {
+            width: 50px;
+            height: 2px;
+            background-color: #222;
+            margin: 8px 0;
+        }
+
+        body.night-mode .ts-line {
+            background-color: #fff;
+        }
+
+        .ts-presets-title {
+            color: #777;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .ts-presets-grid,
+        .sound-presets-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .ts-preset-item,
+        .sound-preset-item {
+            font-size: 22px;
+            cursor: pointer;
+            padding: 10px 0;
+            border-radius: 6px;
+            user-select: none;
+            transition: background 0.15s;
+        }
+
+        .ts-preset-item:active,
+        .sound-preset-item:active {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        body.night-mode .ts-preset-item:active,
+        body.night-mode .sound-preset-item:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ---------- 切分预设选择弹窗 UI ---------- */
+        .sync-box-container {
+            width: 390px;
+            max-width: 100%;
+            height: 65px;
+            border: 1px solid #000;
+            margin: 0 auto 15px auto;
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: relative;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: pan-x;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .sync-box-container::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        .sync-box-track {
+            display: flex;
+            height: 100%;
+            width: max-content;
+        }
+
+        .sync-beat-box {
+            width: 64.5px;
+            height: 64.5px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #fff;
+            box-sizing: border-box;
+        }
+
+        body.night-mode .sync-beat-box {
+            background: #1e1e1e;
+            border-color: #555;
+        }
+
+        .sync-beat-box.selected {
+            background-color: #ccc !important;
+        }
+
+        body.night-mode .sync-beat-box.selected {
+            background-color: #555 !important;
+        }
+
+        .sync-beat-box svg {
+            width: 70px;
+            height: 70px;
+            pointer-events: none;
+        }
+
+        .sync-options-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .sync-options-left {
+            display: flex;
+            gap: 20px;
+        }
+
+        .sync-options-row label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+
+        .sync-notes-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            max-height: 260px;
+            justify-items: center;
+        }
+
+        .sync-note-item {
+            height: 60px;
+            width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #fff;
+        }
+
+        .sync-options-row input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid #222;
+            border-radius: 50%;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+            margin: 0;
+            display: inline-block;
+            vertical-align: middle;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .sync-options-row input[type="checkbox"]:checked {
+            background-color: #222;
+            border-color: #222;
+        }
+
+        body.night-mode .sync-options-row input[type="checkbox"] {
+            border-color: #fff;
+        }
+
+        body.night-mode .sync-options-row input[type="checkbox"]:checked {
+            background-color: #fff;
+            border-color: #fff;
+        }
+
+        body.night-mode .sync-note-item {
+            background: #1e1e1e;
+            border-color: #444;
+        }
+
+        .sync-note-item:hover {
+            border-color: #888;
+        }
+
+        .sync-note-item svg {
+            width: 70px;
+            height: 70px;
+            pointer-events: none;
+        }
+
+        .sync-custom-btn {
+            width: 100%;
+            padding: 10px 0;
+            margin-top: 15px;
+            border: 1px solid #333;
+            background: #fff;
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        body.night-mode .sync-custom-btn {
+            background: #1e1e1e;
+            color: #fff;
+            border-color: #555;
+        }
+
+        /* ==================== 训练弹窗 (Train Modal) ==================== */
+        .train-modal-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .train-header {
+            margin-bottom: 15px;
+        }
+
+        /* 顶部 Tab (变速 / 间歇) */
+        .train-tab-group {
+            display: flex;
+            width: 100%;
+            border: 1px solid #000;
+            margin-bottom: 20px;
+        }
+
+        body.night-mode .train-tab-group {
+            border-color: #fff;
+        }
+
+        .train-tab-btn {
+            flex: 1;
+            height: 40px;
+            background: #fff;
+            color: #000;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .train-tab-btn.active {
+            background: #000;
+            color: #fff;
+        }
+
+        body.night-mode .train-tab-btn {
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        body.night-mode .train-tab-btn.active {
+            background: #fff;
+            color: #000;
+        }
+
+        /* 训练面板控制 */
+        .train-panel {
+            display: none;
+        }
+
+        .train-panel.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sub-panel {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sub-panel.active {
+            display: flex;
+        }
+
+        /* 单选框通用样式 */
+        .train-radio-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 16px;
+        }
+
+        .train-radio-group.center-group {
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        .train-radio-group.vertical-group {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .train-radio-group.inline-group {
+            gap: 10px;
+        }
+
+        .train-radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+        }
+
+        .train-radio-group input[type="radio"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1px solid #222;
+            border-radius: 50%;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+        }
+
+        body.night-mode .train-radio-group input[type="radio"] {
+            border-color: #fff;
+        }
+
+        .train-radio-group input[type="radio"]:checked {
+            background-color: #000;
+            border-color: #000;
+        }
+
+        body.night-mode .train-radio-group input[type="radio"]:checked {
+            background-color: #fff;
+            border-color: #fff;
+        }
+
+        /* 表单输入与按行布局 */
+        .train-form-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+            margin-bottom: 18px;
+            font-size: 18px;
+        }
+
+        .train-form-row .label {
+            width: 40px;
+            text-align: right;
+        }
+
+        .train-form-row .unit {
+            width: 50px;
+            text-align: left;
+        }
+
+        .train-input {
+            width: 100px;
+            height: 48px;
+            border: 1px solid #000;
+            background: #f7f7f7;
+            text-align: center;
+            font-size: 22px;
+            color: inherit;
+            border-radius: 0;
+        }
+
+        body.night-mode .train-input {
+            border-color: #fff;
+            background: #2a2a2a;
+            color: #fff;
+        }
+
+        .train-input.sm {
+            width: 60px;
+            height: 40px;
+            font-size: 18px;
+        }
+
+        /* 自定义变速 */
+        .custom-tempo-header {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .custom-tempo-list {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+.custom-tempo-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 4px;           /* 元素间小间距 */
+    margin-bottom: 12px;
+}
+
+/* 倍速值和 BPM 值两边留空，形成三列表格效果 */
+.rate-val {
+    min-width: 50px;
+    text-align: center;
+    font-weight: 500;
+}
+.bpm-val {
+    min-width: 60px;
+    text-align: center;
+    font-weight: 500;
+    margin: 0 15px;     /* 左右空挡 */
+}
+
+/* 第三列（间隔输入框）的容器 */
+.interval-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+        .step-btn {
+            border: none;
+            background: transparent;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 8px;
+            color: inherit;
+        }
+
+        .process-actions {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .action-btn {
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            cursor: pointer;
+            color: inherit;
+        }
+
+        .target-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            font-size: 18px;
+        }
+
+        /* 固定间歇 */
+        .stepper-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
+            font-size: 20px;
+            margin: 15px 0;
+        }
+
+        .stepper-row .label {
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .stepper-row .unit {
+            min-width: 30px;
+            text-align: left;
+        }
+
+        .step-btn-box {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #000;
+            background: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        body.night-mode .step-btn-box {
+            border-color: #fff;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        .num-val {
+            font-size: 28px;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .row-divider-line {
+            width: 40px;
+            height: 1px;
+            background: #000;
+            margin: 10px auto;
+        }
+
+        body.night-mode .row-divider-line {
+            background: #fff;
+        }
+
+        /* 随机间歇 */
+        .slider-title {
+            font-size: 18px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .train-slider {
+            flex: 1;
+            accent-color: #000;
+        }
+
+        body.night-mode .train-slider {
+            accent-color: #fff;
+        }
+
+        .slider-val {
+            font-size: 20px;
+            min-width: 30px;
+        }
+
+        /* ==================== 训练运行仪表盘 ==================== */
+        .train-run-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            width: 100%;
+            flex: 1;
+            padding: 20px 10px;
+        }
+
+        .train-run-container.active {
+            display: flex;
+        }
+
+        .train-run-top {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .train-run-status {
+            font-size: 20px;
+            margin-top: 10px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        .tempo-bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 10px;
+            height: 120px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .bar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .bar-num {
+            font-size: 13px;
+            color: #666;
+        }
+
+        body.night-mode .bar-num {
+            color: #aaa;
+        }
+
+        .bar-box {
+            width: 100%;
+            border: 1px solid #ccc;
+            height: 70px;
+            background: transparent;
+            border-radius: 2px;
+        }
+
+        .bar-box.active {
+            border-color: #000;
+            border-width: 2px;
+        }
+
+        body.night-mode .bar-box.active {
+            border-color: #fff;
+        }
+
+        .train-run-stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .stat-col {
+            text-align: center;
+        }
+
+        .stat-num {
+            font-size: 38px;
+            font-weight: 300;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        body.night-mode .stat-label {
+            color: #aaa;
+        }
+
+        .train-run-stop-btn {
+            width: 44px;
+            height: 44px;
+            background: #000;
+            border: none;
+            cursor: pointer;
+            border-radius: 2px;
+            margin-top: 10px;
+        }
+
+        body.night-mode .train-run-stop-btn {
+            background: #fff;
+        }
+        
+        /* 移除 number 输入框的上下箭头 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+        
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- 矩阵舞台 -->
+        <div class="matrix-stage" id="matrixStage">
+            <div class="matrix-viewport">
+                <div class="matrix-wrapper" id="matrixWrapper"></div>
+            </div>
+        </div>
+
+        <!-- 运行状态仪表盘（定时器倒计时用） -->
+        <div class="running-dashboard" id="runningDashboard">
+            <div class="tempo-info">
+                <span id="runningTimeSig">4/4</span>
+                <span class="note-symbol">♩</span>
+                <span>=</span>
+                <span id="runningBpm">70</span>
+            </div>
+            <div class="countdown-container" id="countdownContainer">
+                <div class="countdown-hint" id="countdownHint">倒计时中…</div>
+                <div class="countdown-time" id="countdownTime">00:00</div>
+            </div>
+            <!-- 训练运行面板（默认隐藏） -->
+            <div class="train-run-container" id="trainRunContainer">
+                <div class="train-run-top">
+                    <div class="train-run-status" id="trainRunStatus">变速计划进行中...</div>
+                </div>
+                <div class="tempo-bar-chart" id="tempoBarChart">
+                    <div class="bar-item"><span class="bar-num">100</span><div class="bar-box active"></div></div>
+                    <div class="bar-item"><span class="bar-num">120</span><div class="bar-box"></div></div>
+                    <div class="bar-item"><span class="bar-num">140</span><div class="bar-box"></div></div>
+                    <div class="bar-item"><span class="bar-num">160</span><div class="bar-box"></div></div>
+                    <div class="bar-item"><span class="bar-num">180</span><div class="bar-box"></div></div>
+                    <div class="bar-item"><span class="bar-num">200</span><div class="bar-box"></div></div>
+                </div>
+                <div class="train-run-stats" id="trainRunStats">
+                    <div class="stat-col">
+                        <div class="stat-num" id="trainBarCount">9</div>
+                        <div class="stat-label">小节后变速</div>
+                    </div>
+                    <div class="stat-col">
+                        <div class="stat-num" id="trainTimeLeft">00:23</div>
+                        <div class="stat-label">剩余总时长</div>
+                    </div>
+                </div>
+                <button class="train-run-stop-btn" id="trainRunStopBtn"></button>
+            </div>
+        </div>
+
+        <!-- 切分编辑模式控制区 -->
+        <div class="edit-controls" id="editControls">
+            <div class="edit-tips">
+                点击 + - 符号增减拍子<br />
+                点击 圆点 切换拍子类型
+            </div>
+            <button class="exit-edit-btn" id="btnExitEdit">退出自定义切分模式</button>
+        </div>
+
+        <!-- 主界面：BPM 显示与调节 -->
+        <div class="tempo-section" id="tempoSection">
+            <div class="tempo-name" id="tempoName">Adagio</div>
+            <div class="bpm-row">
+                <button class="adjust" id="btnMinus">−</button>
+                <div class="bpm" id="bpmTrigger">
+                    <div class="bpm-number" style="cursor:pointer;" id="bpmNumber">70</div>
+                    <div class="bpm-unit">· BPM ·</div>
+                </div>
+                <button class="adjust" id="btnPlus">+</button>
+            </div>
+        </div>
+
+        <div class="divider" id="divider"></div>
+
+        <!-- 主界面：底部菜单 -->
+        <div class="menu" id="mainMenu">
+            <div class="menu-item" id="btnTimeSig">
+                <div class="menu-title">拍号</div>
+                <div class="menu-sub" id="timeSigSub">4/4</div>
+            </div>
+            <div class="menu-item" id="btnSyncopation">
+                <div class="menu-title">切分</div>
+                <div class="menu-sub">节奏型</div>
+            </div>
+            <div class="menu-item" id="btnSound">
+                <div class="menu-title">音色</div>
+                <div class="menu-sub" id="soundSubText">木鱼</div>
+            </div>
+            <div class="menu-item" id="btnTrain">
+                <div class="menu-title">训练</div>
+                <div class="menu-sub">练习</div>
+            </div>
+        </div>
+
+        <!-- 底部控制栏 -->
+        <div class="bottom" id="bottomBar">
+            <div class="bottom-group-setup" id="setupControls">
+                <div class="bottom-item" id="timerBtn">定时</div>
+                <div class="bottom-item">
+                    <div class="play-btn" id="playBtn"></div>
+                </div>
+                <div class="bottom-item night-toggle-btn" id="nightBtn">夜间</div>
+            </div>
+
+            <div class="bottom-group-running" id="runningControls">
+                <div class="bottom-item" id="pauseContinueBtn">暂停</div>
+                <div class="bottom-item">
+                    <div class="stop-btn" id="stopBtn">
+                        <div class="stop-square"></div>
+                    </div>
+                </div>
+                <div class="bottom-item night-toggle-btn" id="nightBtnRunning">夜间</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 切分节奏型选择弹窗 (Modal) -->
+    <div class="sync-modal" id="syncModal">
+        <div class="sync-modal-content">
+            <div class="sync-header">
+                <span id="syncCancel" style="cursor:pointer;">取消</span>
+                <span style="font-weight: bold;">切分节奏型</span>
+                <span id="syncConfirm" style="cursor:pointer;">确定</span>
+            </div>
+            <div class="sync-box-container" id="syncBoxContainer">
+                <div class="sync-box-track" id="syncBoxTrack"></div>
+            </div>
+            <div class="sync-options-row">
+                <div class="sync-options-left">
+                    <label><input type="checkbox" id="chkAll" checked> 所有</label>
+                    <label><input type="checkbox" id="chkSingle"> 单拍</label>
+                </div>
+                <div class="sync-custom-text" style="cursor:pointer;" id="btnGoCustom">自定义切分&gt;</div>
+            </div>
+            <div class="sync-notes-grid" id="syncNotesGrid"></div>
+        </div>
+    </div>
+
+    <!-- 拍号弹窗 (Modal) -->
+    <div class="ts-modal" id="timeSigModal">
+        <div class="ts-modal-content">
+            <div class="ts-header">
+                <span id="tsCancel" style="cursor:pointer;">取消</span>
+                <span style="font-weight: bold;">拍号</span>
+                <span id="tsConfirm" style="cursor:pointer;">确定</span>
+            </div>
+            <div class="ts-picker-container">
+                <div class="ts-row">
+                    <button class="ts-stepper-btn" id="tsNumMinus">-</button>
+                    <div class="ts-number" id="tsNumText">4</div>
+                    <button class="ts-stepper-btn" id="tsNumPlus">+</button>
+                </div>
+                <div class="ts-line"></div>
+                <div class="ts-row">
+                    <button class="ts-stepper-btn" id="tsDenMinus">-</button>
+                    <div class="ts-number" id="tsDenText">4</div>
+                    <button class="ts-stepper-btn" id="tsDenPlus">+</button>
+                </div>
+            </div>
+            <div class="ts-presets-title">常用拍号</div>
+            <div class="ts-presets-grid" id="tsPresetsGrid">
+                <div class="ts-preset-item" data-num="1" data-den="4">1/4</div>
+                <div class="ts-preset-item" data-num="2" data-den="4">2/4</div>
+                <div class="ts-preset-item" data-num="3" data-den="4">3/4</div>
+                <div class="ts-preset-item" data-num="4" data-den="4">4/4</div>
+                <div class="ts-preset-item" data-num="3" data-den="8">3/8</div>
+                <div class="ts-preset-item" data-num="6" data-den="8">6/8</div>
+                <div class="ts-preset-item" data-num="9" data-den="8">9/8</div>
+                <div class="ts-preset-item" data-num="12" data-den="8">12/8</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BPM 弹窗 Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="modal-btn" id="modalCancel">取消</button>
+                <span>速度 / BPM</span>
+                <button class="modal-btn" id="modalConfirm">确定</button>
+            </div>
+            <div class="modal-display" id="modalDisplay">-</div>
+            <button class="tap-btn" id="tapBtn">TAP</button>
+            <div class="keyboard">
+                <button class="key-btn" data-val="1">1</button>
+                <button class="key-btn" data-val="2">2</button>
+                <button class="key-btn" data-val="3">3</button>
+                <button class="key-btn" data-val="4">4</button>
+                <button class="key-btn" data-val="5">5</button>
+                <button class="key-btn" data-val="6">6</button>
+                <button class="key-btn" data-val="7">7</button>
+                <button class="key-btn" data-val="8">8</button>
+                <button class="key-btn" data-val="9">9</button>
+                <button class="key-btn" id="btnClear">清空</button>
+                <button class="key-btn" data-val="0">0</button>
+                <button class="key-btn" id="btnBackspace">退格</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 定时弹窗 -->
+    <div class="timer-modal" id="timerModal">
+        <div class="timer-modal-content">
+            <div class="timer-header">
+                <span id="cancelTimer" style="cursor:pointer;">取消</span>
+                <span>定时</span>
+                <span id="startTimer" style="cursor:pointer;">开始</span>
+            </div>
+            <div class="timer-input-box">
+                <input type="number" id="customMinutes" value="3" min="1" max="999">
+                <span>分钟</span>
+            </div>
+            <div class="grey-text" style="margin-bottom: 10px; font-size: 13px;">常用定时</div>
+            <div class="preset-grid" id="presetGrid">
+                <div class="preset-item" data-mins="1">1</div>
+                <div class="preset-item" data-mins="3">3</div>
+                <div class="preset-item" data-mins="5">5</div>
+                <div class="preset-item" data-mins="10">10</div>
+                <div class="preset-item" data-mins="15">15</div>
+                <div class="preset-item" data-mins="20">20</div>
+                <div class="preset-item" data-mins="30">30</div>
+                <div class="preset-item" data-mins="60">60</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 音效选择弹窗 (Modal) -->
+    <div class="sound-modal" id="soundModal">
+        <div class="sound-modal-content">
+            <div class="sound-header">
+                <span id="soundCancel" style="cursor:pointer;">取消</span>
+                <span style="font-weight: bold;">音色</span>
+                <span id="soundConfirm" style="cursor:pointer;">确定</span>
+            </div>
+            <div class="sound-presets-grid" id="soundPresetsGrid">
+                <div class="sound-preset-item" sound-num="0">木鱼</div>
+                <div class="sound-preset-item" sound-num="1">人声</div>
+                <div class="sound-preset-item" sound-num="2">牛铃</div>
+                <div class="sound-preset-item" sound-num="3">鼓点</div>
+                <div class="sound-preset-item" sound-num="4">机械</div>
+                <div class="sound-preset-item" sound-num="5">钟表</div>
+                <div class="sound-preset-item" sound-num="6">蜂鸣</div>
+                <div class="sound-preset-item" sound-num="7">电子</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 训练弹窗 (Train Modal) ==================== -->
+    <div class="train-modal" id="trainModal">
+        <div class="train-modal-content">
+            <div class="train-header">
+                <span id="trainCancel" style="cursor:pointer;">取消</span>
+                <span style="font-weight: bold;">训练</span>
+                <span id="trainStart" style="cursor:pointer;">开始</span>
+            </div>
+
+            <!-- 顶部 Tab 切换：变速 / 间歇 -->
+            <div class="train-tab-group">
+                <button class="train-tab-btn active" id="tabTempo">变速</button>
+                <button class="train-tab-btn" id="tabInterval">间歇</button>
+            </div>
+
+            <!-- ==================== TAB 1: 变速训练 ==================== -->
+            <div class="train-panel active" id="panelTempo">
+                <div class="train-radio-group center-group">
+                    <label><input type="radio" name="tempoMode" value="even" checked> 均匀变速</label>
+                    <label><input type="radio" name="tempoMode" value="custom"> 自定义变速</label>
+                </div>
+
+                <!-- 子视图 1: 均匀变速 -->
+                <div class="sub-panel active" id="subEvenTempo">
+                    <div class="train-form-row">
+                        <span class="label">从</span>
+                        <input type="number" class="train-input" id="evenFrom" value="100" />
+                        <span class="unit">BPM</span>
+                    </div>
+                    <div class="train-form-row">
+                        <span class="label">到</span>
+                        <input type="number" class="train-input" id="evenTo" value="200" />
+                        <span class="unit">BPM</span>
+                    </div>
+                    <div class="train-form-row">
+                        <span class="label">每</span>
+                        <input type="number" class="train-input" id="evenStepInterval" value="10" />
+                        <div class="train-radio-group vertical-group">
+                            <label><input type="radio" name="evenUnit" value="bar" checked> 小节</label>
+                            <label><input type="radio" name="evenUnit" value="min"> 分钟</label>
+                        </div>
+                    </div>
+                    <div class="train-form-row">
+                        <span class="label">增加</span>
+                        <input type="number" class="train-input" id="evenStepBpm" value="20" />
+                        <span class="unit">BPM</span>
+                    </div>
+                </div>
+
+                <!-- 子视图 2: 自定义变速 -->
+                <div class="sub-panel" id="subCustomTempo">
+                    <div class="custom-tempo-header">
+                        <span style="flex:1;">倍速</span>
+                        <span style="flex:1;">BPM</span>
+                        <div class="train-radio-group inline-group" style="flex:1.5;">
+                            <label><input type="radio" name="customUnit" value="min" checked> 分钟</label>
+                            <label><input type="radio" name="customUnit" value="bar"> 小节</label>
+                        </div>
+                    </div>
+                    <div class="custom-tempo-list" id="customTempoList">
+                        <div class="custom-tempo-row">
+                            <button class="step-btn custom-rate-minus">-</button>
+                            <span class="rate-val">0.4</span>
+                            <button class="step-btn custom-rate-plus">+</button>
+                            <span class="bpm-val">64</span>
+                            <div class="interval-wrapper">
+                            <button class="step-btn custom-intv-minus">-</button>
+                            <input type="number" class="train-input sm custom-interval-input" value="10" />
+                            <button class="step-btn custom-intv-plus">+</button>
+                        </div></div>
+                        <div class="custom-tempo-row">
+                            <button class="step-btn custom-rate-minus">-</button>
+                            <span class="rate-val">0.6</span>
+                            <button class="step-btn custom-rate-plus">+</button>
+                            <span class="bpm-val">96</span>
+                            <div class="interval-wrapper">
+                            <button class="step-btn custom-intv-minus">-</button>
+                            <input type="number" class="train-input sm custom-interval-input" value="10" />
+                            <button class="step-btn custom-intv-plus">+</button>
+                        </div></div>
+                        <div class="custom-tempo-row">
+                            <button class="step-btn custom-rate-minus">-</button>
+                            <span class="rate-val">0.8</span>
+                            <button class="step-btn custom-rate-plus">+</button>
+                            <span class="bpm-val">128</span>
+                            <div class="interval-wrapper">
+                            <button class="step-btn custom-intv-minus">-</button>
+                            <input type="number" class="train-input sm custom-interval-input" value="10" />
+                            <button class="step-btn custom-intv-plus">+</button>
+                        </div></div>
+                    </div>
+                    <div class="process-actions">
+                        <button class="action-btn" id="btnAddProcess">+ 增加过程</button>
+                        <button class="action-btn" id="btnRemoveProcess">- 减少过程</button>
+                    </div>
+                    <div class="target-row">
+                        <span class="label">目标</span>
+                        <input type="number" class="train-input" id="customTargetBpm" value="160" />
+                        <button class="step-btn" id="btnTargetMinus">-</button>
+                        <input type="number" class="train-input sm" id="customTargetInterval" value="10" />
+                        <button class="step-btn" id="btnTargetPlus">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== TAB 2: 间歇训练 ==================== -->
+            <div class="train-panel" id="panelInterval">
+                <div class="train-radio-group center-group">
+                    <label><input type="radio" name="intervalMode" value="fixed" checked> 固定</label>
+                    <label><input type="radio" name="intervalMode" value="random"> 随机</label>
+                </div>
+
+                <!-- 子视图 1: 固定间歇 -->
+                <div class="sub-panel active" id="subFixedInterval">
+                    <div class="stepper-row">
+                        <span class="label">播放</span>
+                        <button class="step-btn-box" id="fixedPlayMinus">-</button>
+                        <span class="num-val" id="fixedPlayVal">1</span>
+                        <button class="step-btn-box" id="fixedPlayPlus">+</button>
+                        <span class="unit">节</span>
+                    </div>
+                    <div class="row-divider-line"></div>
+                    <div class="stepper-row">
+                        <span class="label">静音</span>
+                        <button class="step-btn-box" id="fixedMuteMinus">-</button>
+                        <span class="num-val" id="fixedMuteVal">1</span>
+                        <button class="step-btn-box" id="fixedMutePlus">+</button>
+                        <span class="unit">节</span>
+                    </div>
+                </div>
+
+                <!-- 子视图 2: 随机间歇 -->
+                <div class="sub-panel" id="subRandomInterval">
+                    <div class="slider-title">设置小节随机静音概率(%)</div>
+                    <div class="slider-container">
+                        <input type="range" class="train-slider" min="0" max="100" value="50" id="muteRange" />
+                        <span class="slider-val" id="muteVal">50</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <script>
+        // --- SVG 统一数据库 ---
+        const PATHS = {
+            full: "m -0.0080925,12.008092 c 0,-1.100472 0.14025633,-2.163183 0.420769,-3.188133 C 0.70397783,7.7950097 1.1085632,6.8401887 1.6264325,5.955496 2.1443012,5.0600133 2.7646652,4.2508423 3.4875245,3.527983 4.2211725,2.7943357 5.0303432,2.1685773 5.9150365,1.650708 6.8105185,1.12205 7.7707345,0.71746467 8.7956845,0.436952 9.8206342,0.14565067 10.883345,0 11.983816,0 c 1.100471,0 2.163181,0.14565067 3.188131,0.436952 1.024949,0.28051267 1.979771,0.685098 2.864464,1.213756 0.895481,0.5178693 1.710046,1.1436277 2.443696,1.877275 0.733647,0.7228593 1.359405,1.5320303 1.877274,2.427513 0.528659,0.8846927 0.933245,1.8395137 1.213758,2.864463 0.291303,1.02495 0.436954,2.087661 0.436954,3.188133 0,1.111261 -0.145651,2.179366 -0.436954,3.204315 -0.280513,1.014161 -0.685099,1.968982 -1.213758,2.864464 -0.517869,0.884693 -1.143627,1.693864 -1.877274,2.427512 -0.73365,0.722859 -1.548215,1.343223 -2.443696,1.861092 -0.884694,0.517869 -1.839515,0.922455 -2.864464,1.213756 C 14.146997,23.859744 13.084287,24 11.983816,24 10.872555,24 9.8044495,23.859744 8.7795005,23.579231 7.7653398,23.28793 6.8105185,22.883344 5.9150365,22.365475 5.0303432,21.847606 4.2211725,21.227242 3.4875245,20.504383 2.7646652,19.770735 2.1443012,18.961564 1.6264325,18.076871 1.1085632,17.181389 0.70397783,16.221173 0.4126765,15.196224 c -0.28051267,-1.024949 -0.420769,-2.08766 -0.420769,-3.188132 z",
+            half: "m -0.0161868,12.008092 c 0,-1.100472 0.14025633,-2.163183 0.420769,-3.188133 C 0.69588487,7.7950097 1.1004709,6.8401887 1.6183402,5.955496 2.1362102,5.0600133 2.7565732,4.2508423 3.4794292,3.527983 4.2130799,2.7943357 5.0222502,2.1685773 5.9069402,1.650708 6.8024249,1.12205 7.7626415,0.71746467 8.7875902,0.436952 9.8125394,0.14565067 10.87525,0 11.975721,0 c 1.100471,0 2.163183,0.14565067 3.188135,0.436952 1.024949,0.28051267 1.97977,0.685098 2.864462,1.213756 0.895484,0.5178693 1.710049,1.1436277 2.443696,1.877275 0.733649,0.7228593 1.359408,1.5320303 1.877277,2.427513 0.528657,0.8846927 0.933242,1.8395137 1.213755,2.864463 C 23.854349,9.844909 24,10.90762 24,12.008092 c 0,1.111261 -0.145651,2.179366 -0.436954,3.204315 -0.280513,1.014161 -0.685098,1.968982 -1.213755,2.864464 -0.517869,0.884693 -1.143628,1.693864 -1.877277,2.427512 -0.733647,0.722859 -1.548212,1.343223 -2.443696,1.861092 -0.884692,0.517869 -1.839513,0.922455 -2.864462,1.213756 C 14.138905,23.859744 13.076193,24 11.975721,24 10.86446,24 9.7963557,23.859744 8.7714072,23.579231 7.7572472,23.28793 6.8024249,22.883344 5.9069402,22.365475 5.0222502,21.847606 4.2130799,21.227242 3.4794292,20.504383 2.7565732,19.770735 2.1362102,18.961564 1.6183402,18.076871 1.1004709,17.181389 0.69588487,16.221173 0.4045822,15.196224 c -0.28051267,-1.024949 -0.420769,-2.08766 -0.420769,-3.188132 z m 22.0094438,0 c 0,-0.91706 -0.118679,-1.801753 -0.356036,-2.65408 C 21.399864,8.4908967 21.060013,7.692515 20.617667,6.958867 20.186109,6.2144303 19.662844,5.5401213 19.047873,4.93594 18.443691,4.3209707 17.769382,3.7977073 17.024947,3.36615 16.2913,2.934592 15.492919,2.6001347 14.629804,2.362778 13.777476,2.1254213 12.892782,2.006743 11.975721,2.006743 v 19.986514 c 0.917061,0 1.801755,-0.118678 2.654083,-0.356035 0.863115,-0.237357 1.661496,-0.571814 2.395143,-1.003372 0.744435,-0.431557 1.418744,-0.949426 2.022926,-1.553607 0.614972,-0.604181 1.138237,-1.27849 1.569794,-2.022927 0.442346,-0.744437 0.782197,-1.542818 1.019554,-2.395145 0.237357,-0.852327 0.356035,-1.73702 0.356036,-2.654079 z",
+            zero: "M 0,12.008092 C 0,10.90762 0.14025633,9.844909 0.420769,8.819959 0.71207033,7.7950097 1.1166557,6.8401887 1.634525,5.955496 2.1523937,5.0600133 2.7727577,4.2508423 3.495617,3.527983 4.229265,2.7943357 5.0384357,2.1685773 5.923129,1.650708 6.818611,1.12205 7.778827,0.71746467 8.803777,0.436952 9.8287263,0.14565067 10.891437,0 11.991909,0 c 1.100472,0 2.163183,0.14565067 3.188132,0.436952 1.024949,0.28051267 1.979771,0.685098 2.864464,1.213756 0.895482,0.5178693 1.710047,1.1436277 2.443695,1.877275 0.733648,0.7228593 1.359407,1.5320303 1.877276,2.427513 0.528658,0.8846927 0.933243,1.8395137 1.213756,2.864463 0.291301,1.02495 0.436952,2.087661 0.436952,3.188133 0,1.111261 -0.145651,2.179366 -0.436952,3.204315 -0.280513,1.014161 -0.685098,1.968982 -1.213756,2.864464 -0.517869,0.884693 -1.143628,1.693864 -1.877276,2.427512 -0.733648,0.722859 -1.548213,1.343223 -2.443695,1.861092 -0.884693,0.517869 -1.839515,0.922455 -2.864464,1.213756 C 14.155092,23.859744 13.092381,24 11.991909,24 10.880648,24 9.8125423,23.859744 8.787593,23.579231 7.7734323,23.28793 6.818611,22.883344 5.923129,22.365475 5.0384357,21.847606 4.229265,21.227242 3.495617,20.504383 2.7727577,19.770735 2.1523937,18.961564 1.634525,18.076871 1.1166557,17.181389 0.71207033,16.221173 0.420769,15.196224 0.14025633,14.171275 0,13.108564 0,12.008092 Z m 2.006743,0 c 0,1.380984 0.2589347,2.681051 0.776804,3.900202 0.528658,1.208361 1.2407283,2.265678 2.136211,3.171949 0.9062707,0.895482 1.9635867,1.607552 3.171948,2.13621 1.2191507,0.517869 2.519218,0.776804 3.900203,0.776804 0.91706,0 1.801753,-0.118678 2.654079,-0.356035 0.863115,-0.237357 1.661497,-0.571814 2.395145,-1.003372 0.744437,-0.431557 1.418746,-0.949426 2.022927,-1.553607 0.614969,-0.604181 1.138233,-1.27849 1.569791,-2.022927 0.442346,-0.744437 0.782197,-1.542818 1.019554,-2.395145 0.237357,-0.852327 0.356035,-1.73702 0.356035,-2.654079 0,-0.91706 -0.118678,-1.801753 -0.356035,-2.65408 C 21.416048,8.4908967 21.076197,7.692515 20.633851,6.958867 20.202293,6.2144303 19.679029,5.5401213 19.06406,4.93594 18.459879,4.3209707 17.78557,3.7977073 17.041133,3.36615 16.307485,2.934592 15.509103,2.6001347 14.645988,2.362778 13.793662,2.1254213 12.908969,2.006743 11.991909,2.006743 10.610924,2.006743 9.3108567,2.271072 8.091706,2.79973 6.8833447,3.3175993 5.8260287,4.0296693 4.919758,4.93594 4.0242753,5.8422113 3.312205,6.9049223 2.783547,8.124073 2.2656777,9.3324343 2.006743,10.627107 2.006743,12.008092 Z",
+            play: "M 22.728179,12 1.2718207,24 V 0 Z",
+            stop: "M 3,2.9999999 H 21 V 21 H 3 Z"
+        };
+
+        // --- 音符/组 SVG 统一数据库 ---
+        const NOTE_SVGS = {
+            none: "M10.104,12.048c-0.144,0-0.256,0.04-0.344,0.136c-0.096,0.088-0.144,0.2-0.144,0.336c0,0.137,0.048,0.248,0.144,0.345C9.848,12.952,9.96,13,10.104,13c0.128,0,0.248-0.048,0.344-0.136c0.088-0.089,0.136-0.2,0.136-0.345c0-0.136-0.048-0.248-0.136-0.336C10.352,12.088,10.24,12.048,10.104,12.048z M11.448,7.6c-0.304-0.288-0.72-0.424-1.232-0.424c-0.568,0-1.016,0.176-1.344,0.528C8.56,8.04,8.4,8.488,8.4,9.048h0.64c0-0.392,0.088-0.696,0.256-0.92c0.2-0.264,0.496-0.392,0.888-0.392c0.335,0,0.6,0.088,0.792,0.28C11.152,8.192,11.24,8.44,11.24,8.76c0,0.224-0.08,0.432-0.232,0.632c-0.056,0.064-0.145,0.16-0.271,0.288c-0.432,0.384-0.704,0.688-0.808,0.927c-0.104,0.201-0.152,0.433-0.152,0.697v0.184h0.648v-0.184c0-0.217,0.048-0.416,0.152-0.593c0.08-0.144,0.199-0.288,0.367-0.432C11.296,9.968,11.52,9.76,11.6,9.664c0.192-0.264,0.297-0.576,0.297-0.936C11.896,8.248,11.744,7.872,11.448,7.6z",
+            e_01: "M11.568,9.31c0.021,0-0.644-0.861-0.832-1.155c-0.259-0.399-0.377-0.798-0.392-0.826c-0.005-0.015-0.037-0.141-0.056-0.217V7.098h-0.003c-0.006-0.025-0.011-0.042-0.011-0.042C10.268,7.028,10.233,7,10.191,7C10.142,7,10.1,7.042,10.1,7.091v1.582c0,0.012,0.004,0.027,0.015,0.042v3.381c-0.143-0.156-0.362-0.25-0.624-0.25C8.812,11.848,8,12.421,8,13.064c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.594,1.491-1.211h0.014V8.812c0.322,0.147,0.824,0.508,1.225,1.19c0.127,0.217,0.328,0.518,0.328,1.1c0,0.504-0.133,1.021-0.314,1.524c-0.014,0.043-0.026,0.077-0.021,0.104c0,0.043,0.029,0.07,0.07,0.07c0.049,0,0.084-0.027,0.112-0.078c0.314-0.559,0.435-1.209,0.435-1.848C12.088,9.975,11.568,9.31,11.568,9.31z",
+            e_02: "M12.498,6.438V6H9.1v0.875h0.015v0.438H9.1v0.875h0.015v3.263c-0.143-0.157-0.362-0.25-0.624-0.25C7.812,11.2,7,11.774,7,12.418c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211h0.014V8.187h3.048v3.262c-0.143-0.156-0.361-0.249-0.623-0.249c-0.679,0-1.491,0.574-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211h0.015V6.438H12.498z M9.289,7.313V6.875h3.048v0.438H9.289z",
+            e_03: "M13.328,10.38c0-0.364-0.098-0.693-0.336-1.008c-0.33-0.434-0.687-0.798-0.952-1.183c-0.267-0.385-0.462-1.106-0.462-1.106C11.564,7.035,11.557,7,11.48,7c-0.084,0-0.105,0.035-0.105,0.084V9.75c0,0.004,0.01,0.009,0.014,0.014v2.331c-0.143-0.156-0.361-0.249-0.623-0.249c-0.679,0-1.49,0.574-1.49,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.594,1.491-1.211h0.015V9.864c0.227,0.111,0.688,0.436,1.063,0.993c0.237,0.356,0.294,0.608,0.294,0.847c0,0.043,0,0.077-0.008,0.119c0,0.168-0.049,0.525-0.153,0.805c-0.007,0.035-0.028,0.077-0.028,0.112c0,0.028,0.014,0.056,0.049,0.077c0.015,0.007,0.021,0.007,0.035,0.007c0.049,0,0.077-0.056,0.105-0.099c0.126-0.195,0.309-0.573,0.309-0.965c0-0.203-0.015-0.371-0.035-0.519C13.265,10.982,13.328,10.724,13.328,10.38z M13.013,10.675c-0.056-0.112-0.119-0.203-0.175-0.28c-0.189-0.245-0.398-0.469-0.742-0.812c-0.273-0.273-0.398-0.511-0.447-0.693c-0.008-0.035-0.015-0.084-0.021-0.14c0.357,0,0.813,0.483,1.064,0.812c0.272,0.357,0.336,0.637,0.336,0.903C13.027,10.535,13.02,10.604,13.013,10.675z M8.303,8.718c-0.042,0-0.07,0.021-0.091,0.056C8.044,9.11,7.764,9.488,7.379,9.586c0.084-0.098,0.119-0.21,0.119-0.336c0-0.273-0.245-0.483-0.518-0.483C6.7,8.781,6.497,9.012,6.497,9.285C6.511,9.677,6.889,9.81,7.218,9.81c0.35-0.014,0.623-0.189,0.833-0.462l-0.315,1.113c-0.098,0.329-0.497,0.784-0.854,0.875C6.959,11.238,7.001,11.119,7.001,11c0-0.279-0.238-0.482-0.511-0.482c-0.28,0-0.49,0.237-0.49,0.518c0,0.21,0.147,0.385,0.329,0.447c0.133,0.057,0.252,0.07,0.392,0.07c0.35-0.014,0.623-0.189,0.833-0.462L6.84,13.646l0.189,0.05l1.365-4.851C8.401,8.83,8.401,8.823,8.401,8.809c0-0.035-0.021-0.07-0.063-0.084C8.324,8.718,8.31,8.718,8.303,8.718z",
+            e_04: "M13.274,6.438H13.26V6H8.1v0.875h0.015v0.438H8.1v0.875h0.015v4.576c-0.143-0.157-0.362-0.25-0.624-0.25C6.812,12.513,6,13.086,6,13.73c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.014v-4.97h4.81v0.438h-1.765V9.5h1.765v3.262c-0.143-0.156-0.361-0.249-0.623-0.249c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.015V6.438z M8.289,7.313V6.875h4.81v0.438H8.289z M9.498,13.086c-0.196,0-0.35,0.154-0.35,0.351s0.154,0.351,0.35,0.351c0.196,0,0.35-0.154,0.35-0.351S9.694,13.086,9.498,13.086z",
+            e_05: "M12.162,6H9.1v0.875h0.015v0.438H9.1v0.875h0.015v0.438H9.1V9.5h0.015v3.263c-0.143-0.157-0.362-0.25-0.624-0.25C7.812,12.513,7,13.086,7,13.73c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.014V9.5h1.735V8.625H9.289V8.187h2.712v4.575c-0.143-0.156-0.361-0.249-0.623-0.249c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.015v-6.72h-0.015V6z M9.289,7.313V6.875h2.712v0.438H9.289z M13.386,13.086c-0.196,0-0.35,0.154-0.35,0.351s0.153,0.351,0.35,0.351s0.351-0.154,0.351-0.351S13.582,13.086,13.386,13.086z",
+            e_06: "M14.049,8.79V8.353H8.1v0.875h0.015v0.438H8.1v0.875h0.015v3.264c-0.143-0.158-0.362-0.25-0.624-0.25C6.812,13.553,6,14.127,6,14.771c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.596,1.491-1.211h0.014V10.54h2.712v3.262c-0.144-0.155-0.36-0.249-0.623-0.249c-0.679,0-1.491,0.574-1.491,1.219c0,0.302,0.217,0.638,0.784,0.638c0.728,0,1.491-0.597,1.491-1.211h0.015V10.54h2.712v3.263c-0.143-0.156-0.361-0.25-0.623-0.25c-0.68,0-1.49,0.574-1.49,1.219c0,0.302,0.217,0.638,0.783,0.638c0.729,0,1.49-0.597,1.49-1.211h0.016V8.79H14.049z M11.001,9.666H8.289V9.665V9.228h2.712V9.666z M13.889,9.666h-2.712V9.665V9.228h2.712V9.666z M10.793,7.283c0.479,0,0.844-0.321,0.844-0.747c0-0.248-0.152-0.387-0.373-0.457c0.148-0.047,0.209-0.073,0.285-0.124c0.149-0.099,0.24-0.273,0.24-0.451c0-0.302-0.24-0.505-0.596-0.505c-0.346,0-0.639,0.216-0.639,0.476c0,0.131,0.079,0.22,0.199,0.22c0.104,0,0.182-0.076,0.182-0.182c0-0.053-0.017-0.091-0.066-0.142c-0.031-0.029-0.045-0.051-0.045-0.074c0-0.076,0.158-0.155,0.309-0.155c0.213,0,0.34,0.117,0.34,0.314c0,0.283-0.199,0.55-0.412,0.55c-0.01,0-0.039-0.003-0.074-0.006c-0.092-0.006-0.092-0.006-0.11-0.006c-0.069,0-0.106,0.032-0.106,0.089c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.039-0.003,0.063-0.006c0.044-0.01,0.093-0.013,0.12-0.013c0.148,0,0.251,0.133,0.251,0.33c0,0.343-0.168,0.673-0.553,0.673c-0.179,0-0.331-0.089-0.331-0.19c0-0.036,0.013-0.048,0.063-0.07c0.093-0.042,0.13-0.099,0.13-0.185c0-0.111-0.088-0.197-0.204-0.197c-0.137,0-0.226,0.108-0.226,0.273C10.177,7.089,10.412,7.283,10.793,7.283z",
+            e_07: "M7.303,10.425c-0.042,0-0.07,0.021-0.091,0.056c-0.168,0.336-0.448,0.714-0.833,0.813c0.084-0.099,0.119-0.211,0.119-0.336c0-0.273-0.245-0.483-0.518-0.483c-0.28,0.014-0.483,0.245-0.483,0.518c0.014,0.392,0.392,0.525,0.721,0.525c0.35-0.015,0.623-0.189,0.833-0.462l-0.315,1.113c-0.098,0.328-0.497,0.783-0.854,0.874c0.077-0.098,0.119-0.217,0.119-0.336c0-0.28-0.238-0.483-0.511-0.483c-0.28,0-0.49,0.238-0.49,0.519c0,0.21,0.147,0.385,0.329,0.448c0.133,0.056,0.252,0.07,0.392,0.07c0.35-0.015,0.623-0.189,0.833-0.463L5.84,15.352L6.029,15.4l1.365-4.85c0.007-0.014,0.007-0.021,0.007-0.035c0-0.035-0.021-0.07-0.063-0.084C7.324,10.425,7.31,10.425,7.303,10.425z M13.438,8.353h-3.063v0.875h0.015v0.438h-0.015v0.875h0.015v3.263c-0.142-0.156-0.362-0.25-0.624-0.25c-0.679,0-1.491,0.574-1.491,1.219c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.596,1.491-1.211h0.015V10.54h2.712v3.263c-0.143-0.157-0.362-0.25-0.623-0.25c-0.679,0-1.491,0.574-1.491,1.219c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.596,1.491-1.211h0.015V8.79h-0.015V8.353z M10.564,9.665V9.228h2.712v0.438H10.564z M9.462,7.283c0.479,0,0.845-0.321,0.845-0.747c0-0.248-0.152-0.387-0.375-0.457c0.148-0.047,0.209-0.073,0.286-0.124c0.149-0.099,0.241-0.273,0.241-0.451C10.459,5.203,10.218,5,9.862,5C9.516,5,9.224,5.216,9.224,5.476c0,0.131,0.08,0.22,0.2,0.22c0.104,0,0.181-0.076,0.181-0.182c0-0.053-0.016-0.091-0.066-0.142C9.506,5.343,9.494,5.321,9.494,5.298c0-0.076,0.159-0.155,0.308-0.155c0.213,0,0.34,0.117,0.34,0.314c0,0.283-0.201,0.55-0.413,0.55C9.719,6.007,9.69,6.003,9.655,6C9.563,5.994,9.563,5.994,9.544,5.994c-0.07,0-0.108,0.032-0.108,0.089c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.038-0.003,0.063-0.006c0.044-0.01,0.092-0.013,0.121-0.013c0.149,0,0.251,0.133,0.251,0.33c0,0.343-0.169,0.673-0.553,0.673c-0.178,0-0.33-0.089-0.33-0.19c0-0.036,0.013-0.048,0.063-0.07c0.092-0.042,0.13-0.099,0.13-0.185c0-0.111-0.089-0.197-0.225-0.197c-0.136,0-0.225,0.108-0.225,0.273C8.846,7.089,9.081,7.283,9.462,7.283z M5,7.478L5.175,7.478L5.175,6.253L8.234,6.253L8.234,6.078L5,6.078Z M11.078,6.078L11.078,6.253L14.137,6.253L14.137,7.478L14.313,7.478L14.313,6.078Z",
+            e_08: "M7.716,10.725C7.388,10.29,7.031,9.926,6.765,9.541C6.499,9.156,6.303,8.436,6.303,8.436C6.289,8.386,6.282,8.352,6.205,8.352C6.121,8.352,6.1,8.386,6.1,8.436v2.666c0,0.005,0.01,0.01,0.015,0.015v2.332c-0.143-0.157-0.362-0.25-0.624-0.25C4.812,13.198,4,13.771,4,14.416c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.014v-2.628c0.227,0.111,0.688,0.437,1.063,0.993c0.238,0.356,0.294,0.608,0.294,0.847c0,0.042,0,0.077-0.007,0.119c0,0.168-0.049,0.525-0.154,0.805c-0.007,0.035-0.028,0.077-0.028,0.112c0,0.028,0.014,0.056,0.049,0.077c0.014,0.007,0.021,0.007,0.035,0.007c0.049,0,0.077-0.056,0.105-0.099c0.126-0.195,0.308-0.573,0.308-0.965c0-0.203-0.014-0.371-0.035-0.519c0.07-0.259,0.133-0.519,0.133-0.86C8.052,11.368,7.955,11.039,7.716,10.725z M7.737,12.025c-0.056-0.111-0.119-0.203-0.175-0.279c-0.189-0.245-0.399-0.469-0.742-0.813c-0.273-0.272-0.399-0.511-0.448-0.692c-0.007-0.035-0.014-0.084-0.021-0.14c0.357,0,0.812,0.483,1.064,0.812c0.273,0.356,0.336,0.637,0.336,0.903C7.751,11.886,7.745,11.956,7.737,12.025z M15.992,11.732c0-0.364-0.098-0.693-0.336-1.008c-0.329-0.435-0.686-0.798-0.952-1.184c-0.266-0.385-0.462-1.105-0.462-1.105c-0.014-0.049-0.021-0.084-0.098-0.084c-0.084,0-0.105,0.035-0.105,0.084v2.666c0,0.005,0.01,0.01,0.015,0.015v2.331c-0.143-0.156-0.362-0.249-0.623-0.249c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.015v-2.628c0.228,0.111,0.688,0.438,1.063,0.993c0.238,0.356,0.294,0.608,0.294,0.847c0,0.042,0,0.077-0.007,0.119c0,0.168-0.049,0.525-0.153,0.805c-0.008,0.035-0.029,0.077-0.029,0.112c0,0.028,0.015,0.056,0.05,0.077c0.014,0.007,0.021,0.007,0.034,0.007c0.05,0,0.078-0.056,0.105-0.099c0.126-0.195,0.309-0.573,0.309-0.965c0-0.203-0.015-0.371-0.035-0.519C15.93,12.334,15.992,12.074,15.992,11.732z M15.678,12.025c-0.057-0.111-0.119-0.203-0.176-0.279c-0.189-0.245-0.398-0.469-0.742-0.813c-0.272-0.272-0.398-0.511-0.447-0.692c-0.008-0.035-0.014-0.084-0.021-0.14c0.357,0,0.813,0.483,1.064,0.812c0.272,0.356,0.336,0.637,0.336,0.903C15.691,11.886,15.684,11.956,15.678,12.025z M10.967,10.07c-0.041,0-0.069,0.021-0.09,0.056c-0.168,0.336-0.448,0.714-0.833,0.812c0.084-0.098,0.119-0.21,0.119-0.336c0-0.273-0.245-0.483-0.518-0.483c-0.28,0.014-0.483,0.245-0.483,0.518c0.014,0.392,0.392,0.525,0.721,0.525c0.35-0.015,0.623-0.189,0.832-0.463L10.4,11.813c-0.098,0.329-0.497,0.783-0.854,0.875c0.077-0.098,0.119-0.217,0.119-0.336c0-0.28-0.238-0.483-0.511-0.483c-0.28,0-0.49,0.238-0.49,0.519c0,0.209,0.147,0.385,0.329,0.447c0.133,0.057,0.252,0.07,0.392,0.07c0.35-0.014,0.623-0.189,0.833-0.462l-0.714,2.555l0.189,0.049l1.365-4.85c0.007-0.014,0.007-0.021,0.007-0.035c0-0.035-0.021-0.07-0.063-0.084C10.988,10.07,10.975,10.07,10.967,10.07z M9.963,7.282c0.479,0,0.845-0.32,0.845-0.746c0-0.248-0.152-0.387-0.375-0.457c0.149-0.048,0.209-0.074,0.286-0.125c0.148-0.098,0.241-0.273,0.241-0.451C10.96,5.203,10.719,5,10.363,5c-0.346,0-0.638,0.216-0.638,0.476c0,0.13,0.079,0.219,0.2,0.219c0.105,0,0.181-0.076,0.181-0.181c0-0.054-0.016-0.092-0.067-0.143C10.007,5.343,9.995,5.32,9.995,5.298c0-0.076,0.159-0.156,0.308-0.156c0.213,0,0.34,0.118,0.34,0.314c0,0.282-0.2,0.549-0.413,0.549c-0.009,0-0.038-0.002-0.073-0.006c-0.092-0.007-0.092-0.007-0.111-0.007c-0.07,0-0.108,0.032-0.108,0.089c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.038-0.003,0.063-0.006c0.044-0.009,0.092-0.013,0.121-0.013c0.149,0,0.251,0.133,0.251,0.33c0,0.343-0.168,0.673-0.553,0.673c-0.178,0-0.33-0.089-0.33-0.19c0-0.035,0.013-0.047,0.063-0.07c0.092-0.041,0.13-0.098,0.13-0.184c0-0.111-0.089-0.197-0.204-0.197c-0.136,0-0.225,0.108-0.225,0.273C9.347,7.089,9.582,7.282,9.963,7.282z M5.4,6.253L8.735,6.253L8.735,6.078L5.225,6.078L5.225,7.478L5.4,7.478Z M14.914,7.478L15.09,7.478L15.09,6.078L11.578,6.078L11.578,6.253L14.914,6.253Z",
+            e_09: "M14.471,10.424c-0.042,0-0.07,0.021-0.091,0.056c-0.168,0.336-0.448,0.713-0.833,0.812c0.084-0.099,0.119-0.21,0.119-0.337c0-0.272-0.245-0.482-0.518-0.482c-0.28,0.014-0.483,0.245-0.483,0.518c0.015,0.393,0.392,0.525,0.721,0.525c0.351-0.014,0.623-0.189,0.833-0.462l-0.314,1.112c-0.099,0.33-0.498,0.785-0.854,0.875c0.077-0.098,0.119-0.217,0.119-0.336c0-0.279-0.237-0.482-0.511-0.482c-0.28,0-0.49,0.238-0.49,0.518c0,0.211,0.146,0.385,0.329,0.448c0.133,0.056,0.252,0.069,0.392,0.069c0.35-0.014,0.623-0.188,0.833-0.461l-0.714,2.555l0.189,0.049l1.364-4.851c0.007-0.015,0.007-0.021,0.007-0.035c0-0.035-0.021-0.07-0.063-0.084C14.492,10.424,14.478,10.424,14.471,10.424z M11.293,8.352H8.1v0.875h0.015v0.438H8.1v0.875h0.015v3.263c-0.143-0.156-0.362-0.249-0.624-0.249C6.812,13.553,6,14.127,6,14.771c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.014v-3.658h2.843v3.263c-0.143-0.156-0.361-0.249-0.623-0.249c-0.679,0-1.491,0.574-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.015V8.79h-0.015V8.352z M8.289,9.665V9.227h2.843v0.438H8.289z M11.699,5.504C11.699,5.203,11.458,5,11.103,5c-0.347,0-0.638,0.216-0.638,0.476c0,0.13,0.079,0.219,0.2,0.219c0.105,0,0.182-0.076,0.182-0.181c0-0.054-0.016-0.092-0.066-0.143c-0.032-0.028-0.045-0.051-0.045-0.073c0-0.076,0.158-0.156,0.308-0.156c0.213,0,0.34,0.118,0.34,0.314c0,0.282-0.2,0.549-0.413,0.549c-0.01,0-0.037-0.002-0.072-0.006c-0.092-0.007-0.092-0.007-0.111-0.007c-0.07,0-0.108,0.032-0.108,0.089c0,0.051,0.035,0.083,0.093,0.083c0.016,0,0.037-0.003,0.063-0.006c0.045-0.009,0.093-0.013,0.121-0.013c0.149,0,0.251,0.133,0.251,0.33c0,0.343-0.169,0.673-0.553,0.673c-0.178,0-0.33-0.089-0.33-0.19c0-0.035,0.013-0.047,0.063-0.07c0.092-0.041,0.131-0.098,0.131-0.184c0-0.111-0.089-0.197-0.204-0.197c-0.137,0-0.226,0.108-0.226,0.273c0,0.309,0.235,0.501,0.616,0.501c0.479,0,0.845-0.32,0.845-0.746c0-0.248-0.152-0.387-0.375-0.457c0.149-0.048,0.21-0.074,0.286-0.125C11.607,5.857,11.699,5.682,11.699,5.504z M7.4,6.252L9.475,6.252L9.475,6.078L7.225,6.078L7.225,7.477L7.4,7.477Z M12.318,6.078L12.318,6.252L14.393,6.252L14.393,7.477L14.568,7.477L14.568,6.078Z",
+            e_10: "M11.992,10.725c-0.33-0.435-0.687-0.798-0.953-1.184c-0.266-0.385-0.461-1.105-0.461-1.105c-0.015-0.049-0.021-0.084-0.099-0.084c-0.084,0-0.105,0.035-0.105,0.084v2.666c0,0.005,0.01,0.011,0.015,0.016v2.331c-0.143-0.157-0.362-0.25-0.624-0.25c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.727,0,1.49-0.594,1.491-1.21h0.015v-2.628c0.228,0.111,0.688,0.438,1.063,0.993c0.238,0.356,0.295,0.608,0.295,0.847c0,0.042,0,0.077-0.008,0.119c0,0.168-0.049,0.525-0.153,0.805c-0.007,0.035-0.028,0.077-0.028,0.112c0,0.028,0.014,0.056,0.049,0.077c0.014,0.007,0.021,0.007,0.035,0.007c0.049,0,0.077-0.056,0.105-0.099c0.125-0.195,0.308-0.573,0.308-0.965c0-0.203-0.015-0.371-0.035-0.519c0.07-0.259,0.134-0.519,0.134-0.86C12.328,11.368,12.229,11.039,11.992,10.725z M12.013,12.025c-0.056-0.111-0.119-0.203-0.175-0.279c-0.189-0.245-0.399-0.469-0.742-0.813c-0.273-0.272-0.398-0.511-0.448-0.692c-0.007-0.035-0.014-0.084-0.021-0.14c0.356,0,0.812,0.483,1.063,0.812c0.272,0.356,0.336,0.637,0.336,0.903C12.026,11.886,12.02,11.956,12.013,12.025z M7.303,10.07c-0.042,0-0.07,0.021-0.091,0.056c-0.168,0.336-0.448,0.714-0.833,0.812c0.084-0.098,0.119-0.21,0.119-0.336c0-0.273-0.245-0.483-0.518-0.483c-0.28,0.014-0.483,0.245-0.483,0.518c0.014,0.392,0.392,0.525,0.721,0.525c0.35-0.015,0.623-0.189,0.833-0.463l-0.315,1.113c-0.098,0.329-0.497,0.783-0.854,0.875c0.077-0.098,0.119-0.217,0.119-0.336c0-0.28-0.238-0.483-0.511-0.483c-0.28,0-0.49,0.238-0.49,0.519c0,0.209,0.147,0.385,0.329,0.447c0.133,0.057,0.252,0.07,0.392,0.07c0.35-0.014,0.623-0.189,0.833-0.462L5.84,14.997l0.189,0.049l1.365-4.85c0.007-0.014,0.007-0.021,0.007-0.035c0-0.035-0.021-0.07-0.063-0.084C7.324,10.07,7.31,10.07,7.303,10.07z M15.242,10.07c-0.042,0-0.07,0.021-0.091,0.056c-0.168,0.336-0.448,0.714-0.833,0.812c0.084-0.098,0.119-0.21,0.119-0.336c0-0.273-0.245-0.483-0.518-0.483c-0.28,0.014-0.483,0.245-0.483,0.518c0.015,0.392,0.392,0.525,0.721,0.525c0.351-0.015,0.623-0.189,0.833-0.463l-0.314,1.113c-0.098,0.329-0.498,0.783-0.854,0.875c0.077-0.098,0.119-0.217,0.119-0.336c0-0.28-0.237-0.483-0.511-0.483c-0.28,0-0.49,0.238-0.49,0.519c0,0.209,0.146,0.385,0.329,0.447c0.133,0.057,0.252,0.07,0.392,0.07c0.35-0.014,0.623-0.189,0.834-0.462l-0.715,2.555l0.189,0.049l1.365-4.85c0.006-0.014,0.006-0.021,0.006-0.035c0-0.035-0.021-0.07-0.063-0.084C15.264,10.07,15.25,10.07,15.242,10.07z M9.976,7.282c0.479,0,0.845-0.32,0.845-0.746c0-0.248-0.152-0.387-0.375-0.457c0.149-0.048,0.209-0.074,0.286-0.125c0.149-0.098,0.241-0.273,0.241-0.451C10.973,5.203,10.731,5,10.375,5c-0.346,0-0.638,0.216-0.638,0.476c0,0.13,0.08,0.219,0.2,0.219c0.105,0,0.181-0.076,0.181-0.181c0-0.054-0.016-0.092-0.067-0.143c-0.032-0.028-0.044-0.051-0.044-0.073c0-0.076,0.159-0.156,0.308-0.156c0.212,0,0.339,0.118,0.339,0.314c0,0.282-0.199,0.549-0.412,0.549c-0.009,0-0.038-0.002-0.073-0.006c-0.092-0.007-0.092-0.007-0.111-0.007c-0.07,0-0.108,0.032-0.108,0.089c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.038-0.003,0.063-0.006c0.044-0.009,0.092-0.013,0.121-0.013c0.149,0,0.25,0.133,0.25,0.33c0,0.343-0.168,0.673-0.552,0.673c-0.178,0-0.33-0.089-0.33-0.19c0-0.035,0.013-0.047,0.063-0.07c0.092-0.041,0.13-0.098,0.13-0.184c0-0.111-0.089-0.197-0.203-0.197c-0.136,0-0.226,0.108-0.226,0.273C9.359,7.089,9.595,7.282,9.976,7.282z M5.174,6.253L8.748,6.253L8.748,6.078L5,6.078L5,7.478L5.174,7.478Z M11.592,6.078L11.592,6.253L15.164,6.253L15.164,7.478L15.34,7.478L15.34,6.078Z",
+            e_11: "M15.603,11.732c0-0.364-0.099-0.693-0.336-1.008c-0.329-0.435-0.687-0.798-0.952-1.184c-0.266-0.385-0.461-1.105-0.461-1.105c-0.015-0.049-0.021-0.084-0.099-0.084c-0.084,0-0.104,0.035-0.104,0.084v2.666c0,0.004,0.01,0.01,0.014,0.015v2.331c-0.143-0.156-0.362-0.249-0.623-0.249c-0.679,0-1.49,0.573-1.49,1.218c0,0.301,0.217,0.637,0.783,0.637c0.729,0,1.49-0.594,1.491-1.21h0.015v-2.628c0.228,0.111,0.688,0.438,1.063,0.993c0.238,0.356,0.295,0.608,0.295,0.847c0,0.042,0,0.077-0.008,0.119c0,0.168-0.049,0.525-0.154,0.805c-0.006,0.035-0.027,0.077-0.027,0.112c0,0.028,0.014,0.056,0.049,0.077c0.014,0.007,0.021,0.007,0.035,0.007c0.049,0,0.076-0.056,0.105-0.099c0.125-0.195,0.307-0.573,0.307-0.965c0-0.203-0.014-0.371-0.034-0.519C15.539,12.334,15.603,12.074,15.603,11.732z M15.287,12.025c-0.056-0.111-0.119-0.203-0.174-0.279c-0.189-0.245-0.399-0.469-0.742-0.813c-0.273-0.272-0.399-0.511-0.448-0.692c-0.007-0.035-0.015-0.084-0.021-0.14c0.356,0,0.812,0.483,1.063,0.812c0.272,0.356,0.336,0.637,0.336,0.903C15.302,11.886,15.295,11.956,15.287,12.025z M7.303,10.07c-0.042,0-0.07,0.021-0.091,0.056c-0.168,0.336-0.448,0.714-0.833,0.812c0.084-0.098,0.119-0.21,0.119-0.336c0-0.273-0.245-0.483-0.518-0.483c-0.28,0.014-0.483,0.245-0.483,0.518c0.014,0.392,0.392,0.525,0.721,0.525c0.35-0.015,0.623-0.189,0.833-0.463l-0.315,1.113c-0.098,0.329-0.497,0.783-0.854,0.875c0.077-0.098,0.119-0.217,0.119-0.336c0-0.28-0.238-0.483-0.511-0.483c-0.28,0-0.49,0.238-0.49,0.519c0,0.209,0.147,0.385,0.329,0.447c0.133,0.057,0.252,0.07,0.392,0.07c0.35-0.014,0.623-0.189,0.833-0.462L5.84,14.997l0.189,0.049l1.365-4.85c0.007-0.014,0.007-0.021,0.007-0.035c0-0.035-0.021-0.07-0.063-0.084C7.324,10.07,7.31,10.07,7.303,10.07z M10.578,10.07c-0.042,0-0.07,0.021-0.091,0.056c-0.168,0.336-0.448,0.714-0.833,0.812c0.084-0.098,0.119-0.21,0.119-0.336c0-0.273-0.245-0.483-0.518-0.483c-0.28,0.014-0.483,0.245-0.483,0.518c0.014,0.392,0.392,0.525,0.721,0.525c0.35-0.015,0.623-0.189,0.833-0.463l-0.315,1.113c-0.098,0.329-0.497,0.783-0.854,0.875c0.077-0.098,0.119-0.217,0.119-0.336c0-0.28-0.238-0.483-0.511-0.483c-0.28,0-0.49,0.238-0.49,0.519c0,0.209,0.147,0.385,0.329,0.447c0.133,0.057,0.252,0.07,0.392,0.07c0.35-0.014,0.623-0.189,0.833-0.462l-0.714,2.555l0.189,0.049l1.365-4.85c0.007-0.014,0.007-0.021,0.007-0.035c0-0.035-0.021-0.07-0.063-0.084C10.6,10.07,10.585,10.07,10.578,10.07z M9.656,7.282c0.479,0,0.844-0.32,0.844-0.746c0-0.248-0.152-0.387-0.375-0.457c0.149-0.048,0.209-0.074,0.286-0.125c0.149-0.098,0.241-0.273,0.241-0.451C10.652,5.203,10.411,5,10.056,5C9.709,5,9.417,5.216,9.417,5.476c0,0.13,0.08,0.219,0.2,0.219c0.104,0,0.181-0.076,0.181-0.181c0-0.054-0.016-0.092-0.066-0.143C9.7,5.343,9.688,5.32,9.688,5.298c0-0.076,0.159-0.156,0.308-0.156c0.212,0,0.339,0.118,0.339,0.314c0,0.282-0.2,0.549-0.413,0.549c-0.01,0-0.038-0.002-0.073-0.006C9.757,5.993,9.757,5.993,9.738,5.993c-0.07,0-0.108,0.032-0.108,0.089c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.038-0.003,0.063-0.006C9.83,6.149,9.878,6.146,9.906,6.146c0.149,0,0.251,0.133,0.251,0.33c0,0.343-0.168,0.673-0.552,0.673c-0.178,0-0.33-0.089-0.33-0.19c0-0.035,0.013-0.047,0.063-0.07c0.092-0.041,0.13-0.098,0.13-0.184c0-0.111-0.089-0.197-0.203-0.197c-0.137,0-0.226,0.108-0.226,0.273C9.04,7.089,9.275,7.282,9.656,7.282z M5.174,6.253L8.428,6.253L8.428,6.078L5,6.078L5,7.478L5.174,7.478Z M14.524,7.478L14.7,7.478L14.7,6.078L11.271,6.078L11.271,6.253L14.524,6.253Z",
+            e_12: "M14.064,6.438h-0.016V6H8.1v0.875h0.015v0.438H8.1v0.874h0.015v0.438H8.1V9.5h0.015v3.263c-0.142-0.157-0.362-0.251-0.624-0.251C6.812,12.514,6,13.086,6,13.73c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.595,1.491-1.21H8.29V9.5h2.711v3.262c-0.143-0.157-0.361-0.25-0.623-0.25c-0.679,0.002-1.491,0.574-1.491,1.219c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.595,1.491-1.21h0.015v-4.97h2.712v4.577c-0.142-0.158-0.361-0.252-0.623-0.252c-0.68,0.002-1.492,0.574-1.492,1.219c0,0.301,0.218,0.637,0.785,0.637c0.728,0,1.488-0.595,1.489-1.21h0.017V6.438z M8.29,6.875h2.711v0.438H8.29V6.875z M11.001,8.625H8.29V8.187h2.711V8.625z M11.177,7.313V6.875h2.712v0.438H11.177z",
+            e_13: "M14.002,6.438h-0.016V6H7.1v0.875h0.015v0.438H7.1v0.874h0.015v4.576c-0.142-0.157-0.362-0.251-0.624-0.251C5.812,12.514,5,13.086,5,13.73c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.595,1.491-1.21H7.29v-4.97h3.65v0.438h-0.014V9.5h0.014v3.263c-0.143-0.157-0.361-0.251-0.623-0.251c-0.68,0.002-1.491,0.574-1.491,1.219c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.489-0.595,1.49-1.21h0.016V9.5h2.711v3.263c-0.143-0.157-0.361-0.251-0.623-0.251c-0.68,0.002-1.49,0.574-1.49,1.219c0,0.301,0.217,0.637,0.783,0.637c0.729,0,1.489-0.595,1.49-1.21h0.016V6.438z M13.826,6.875v0.438h-2.711V6.875H13.826z M7.29,7.313V6.875h3.65v0.438H7.29z M11.115,8.625V8.187h2.711v0.438H11.115z",
+            e_14: "M13.986,6.438V6H7.1v0.875h0.015v0.438H7.1v0.874h0.015v0.438H7.1V9.5h0.015v3.264c-0.142-0.158-0.362-0.253-0.624-0.253C5.812,12.514,5,13.086,5,13.73c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.596,1.491-1.21H7.29V9.5h1.734V8.625H7.29V8.187h2.712v4.575c-0.143-0.156-0.362-0.251-0.624-0.251c-0.679,0.003-1.491,0.575-1.491,1.22c0,0.302,0.217,0.638,0.784,0.638c0.728,0,1.49-0.595,1.491-1.21h0.014v-4.97h3.65v0.438h-1.764V9.5h1.764v3.262c-0.143-0.156-0.361-0.251-0.623-0.251c-0.68,0.003-1.49,0.575-1.49,1.22c0,0.302,0.217,0.638,0.783,0.638c0.729,0,1.488-0.595,1.49-1.21h0.016v-6.72H13.986z M10.002,7.313H7.29V6.875h2.712V7.313z M13.826,7.313h-3.65V6.875h3.65V7.313z",
+            e_15: "M14.951,6.438h-0.016V6H6.1v0.875h0.015v0.438H6.1v0.874h0.015v0.438H6.1V9.5h0.015v2.825c-0.142-0.157-0.362-0.25-0.624-0.25C4.812,12.075,4,12.648,4,13.293c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21H6.29V9.5h2.712v2.825c-0.143-0.157-0.362-0.25-0.624-0.25c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.594,1.491-1.21h0.014V9.5h2.712v2.826c-0.142-0.157-0.361-0.251-0.623-0.251c-0.68,0-1.492,0.573-1.492,1.218c0,0.301,0.217,0.637,0.785,0.637c0.729,0,1.488-0.594,1.489-1.21h0.017V9.5h2.711v2.826c-0.143-0.157-0.362-0.251-0.623-0.251c-0.68,0-1.49,0.573-1.49,1.218c0,0.301,0.217,0.637,0.783,0.637c0.729,0,1.489-0.594,1.49-1.21h0.016V6.438z M12.064,6.875h2.711v0.438h-2.711V6.875z M11.889,7.313H9.176V6.875h2.712V7.313z M6.29,6.875h2.712v0.438H6.29V6.875z M6.29,8.625V8.187h2.712v0.438H6.29V6.875z M9.176,8.625V8.187h2.712v0.438H9.176z M12.064,8.625V8.187h2.711v0.438H12.064z",
+            e_16: "M9.328,8.372C8.999,7.939,8.642,7.575,8.375,7.19C8.11,6.805,7.914,6.084,7.914,6.084 C7.9,6.035,7.893,6,7.816,6C7.732,6,7.711,6.035,7.711,6.084v3.892c0,0.004,0.01,0.01,0.015,0.015v2.323 c-0.143-0.157-0.362-0.25-0.624-0.25c-0.679,0-1.491,0.574-1.491,1.219c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.596,1.491-1.211H7.9v-2.62c0.227,0.111,0.688,0.437,1.063,0.994c0.238,0.356,0.294,0.608,0.294,0.847 c0,0.043,0,0.077-0.007,0.118c0,0.168-0.049,0.525-0.154,0.806c-0.007,0.035-0.028,0.078-0.028,0.111 c0,0.028,0.014,0.057,0.049,0.077c0.014,0.007,0.021,0.007,0.035,0.007c0.049,0,0.077-0.056,0.105-0.098 c0.126-0.196,0.308-0.574,0.308-0.967c0-0.202-0.014-0.37-0.035-0.519C9.6,11.2,9.663,10.9,9.663,10.549 c0-0.174-0.028-0.35-0.077-0.51c0.05-0.218,0.078-0.435,0.078-0.659C9.664,9.016,9.566,8.687,9.328,8.372z M9.349,10.893 c-0.057-0.112-0.12-0.197-0.176-0.273c-0.189-0.245-0.399-0.462-0.742-0.812C8.159,9.535,8.033,9.296,7.984,9.115 C7.977,9.08,7.97,9.023,7.956,8.968c0.364,0,0.819,0.434,1.071,0.763c0.273,0.364,0.336,0.644,0.336,0.91 C9.363,10.725,9.356,10.809,9.349,10.893z M9.356,9.584C9.349,9.569,9.334,9.556,9.328,9.542c-0.329-0.434-0.91-0.924-1.176-1.309 C8.047,8.079,7.991,7.904,7.956,7.75c0.357,0,0.818,0.483,1.07,0.812C9.3,8.918,9.363,9.206,9.363,9.472 C9.363,9.514,9.356,9.549,9.356,9.584z M17.861,10.038c0.05-0.217,0.078-0.434,0.078-0.658c0-0.364-0.101-0.693-0.336-1.008 c-0.33-0.434-0.688-0.798-0.953-1.183c-0.268-0.385-0.461-1.106-0.461-1.106C16.176,6.035,16.168,6,16.092,6 c-0.084,0-0.105,0.035-0.105,0.084v3.892c0,0.004,0.01,0.009,0.014,0.014v2.324c-0.143-0.157-0.362-0.25-0.623-0.25 c-0.679,0-1.49,0.574-1.49,1.219c0,0.301,0.217,0.637,0.783,0.637c0.729,0,1.491-0.596,1.491-1.211h0.015V10.09 c0.229,0.111,0.688,0.437,1.061,0.993c0.236,0.356,0.295,0.608,0.295,0.847c0,0.043,0,0.077-0.01,0.118 c0,0.168-0.049,0.525-0.151,0.806c-0.009,0.035-0.028,0.078-0.028,0.111c0,0.028,0.016,0.057,0.051,0.077 c0.015,0.007,0.021,0.007,0.033,0.007c0.051,0,0.077-0.056,0.105-0.098c0.126-0.196,0.308-0.574,0.308-0.967 c0-0.202-0.014-0.37-0.032-0.519c0.067-0.267,0.133-0.565,0.133-0.918C17.939,10.374,17.911,10.198,17.861,10.038z M17.624,10.893 c-0.056-0.112-0.119-0.197-0.175-0.273c-0.189-0.245-0.398-0.462-0.742-0.812c-0.273-0.273-0.398-0.511-0.447-0.693 c-0.008-0.035-0.015-0.091-0.029-0.147c0.365,0,0.82,0.434,1.072,0.763c0.272,0.364,0.336,0.644,0.336,0.911 C17.639,10.725,17.631,10.809,17.624,10.893z M17.631,9.584c-0.007-0.014-0.021-0.028-0.027-0.042 c-0.33-0.434-0.91-0.924-1.176-1.309c-0.104-0.154-0.162-0.329-0.197-0.483c0.357,0,0.82,0.483,1.072,0.812 c0.272,0.357,0.336,0.644,0.336,0.91C17.639,9.514,17.631,9.549,17.631,9.584z M4.639,7.145c-0.042,0-0.07,0.028-0.091,0.063 c-0.133,0.293-0.455,0.706-0.791,0.79c0.084-0.105,0.105-0.21,0.105-0.336c0-0.266-0.217-0.469-0.49-0.469 s-0.504,0.21-0.504,0.504c0,0.371,0.329,0.511,0.644,0.532c0.028,0,0.056,0,0.091-0.007 c0.343-0.021,0.623-0.217,0.819-0.49L4.149,8.859c-0.14,0.35-0.441,0.84-0.833,0.938C3.4,9.692,3.421,9.587,3.421,9.461 c0-0.28-0.231-0.469-0.504-0.469s-0.49,0.217-0.49,0.497c0,0.329,0.315,0.532,0.63,0.532c0.637,0,0.896-0.441,0.924-0.49 l-0.259,1.057c-0.154,0.363-0.42,0.833-0.826,0.945c0.077-0.1,0.098-0.211,0.098-0.336c0-0.28-0.224-0.463-0.497-0.463 S2,10.945,2,11.225c0,0.364,0.308,0.539,0.679,0.539c0.371,0,0.665-0.203,0.875-0.496l-0.637,2.604l0.189,0.041l1.624-6.65 c0.007-0.007,0.007-0.021,0.007-0.028c0-0.042-0.028-0.07-0.07-0.084C4.66,7.145,4.646,7.145,4.639,7.145z M12.916,7.142 c-0.042,0-0.068,0.028-0.091,0.063c-0.136,0.294-0.455,0.707-0.791,0.791c0.084-0.105,0.104-0.21,0.104-0.336 c0-0.266-0.218-0.469-0.488-0.469c-0.272,0-0.504,0.21-0.504,0.504c0,0.371,0.328,0.511,0.644,0.532 c0.028,0,0.058,0,0.092-0.007c0.343-0.021,0.622-0.217,0.818-0.49l-0.273,1.127c-0.14,0.35-0.44,0.84-0.831,0.938 c0.084-0.105,0.104-0.21,0.104-0.336c0-0.28-0.231-0.469-0.504-0.469c-0.273,0-0.489,0.217-0.489,0.497 c-0.003,0.331,0.312,0.534,0.626,0.534c0.637,0,0.896-0.441,0.924-0.49l-0.259,1.057c-0.153,0.363-0.42,0.833-0.825,0.945 c0.076-0.1,0.098-0.211,0.098-0.336c0-0.28-0.225-0.463-0.496-0.463c-0.272,0-0.498,0.211-0.498,0.49 c0,0.362,0.309,0.539,0.68,0.539c0.37,0,0.664-0.203,0.874-0.498l-0.637,2.604l0.188,0.041l1.624-6.649 c0.007-0.007,0.007-0.021,0.007-0.028c0-0.042-0.027-0.07-0.07-0.084C12.936,7.142,12.921,7.142,12.916,7.142z",
+            q_01: "M11.008,6.618v5.014c-0.143-0.157-0.361-0.251-0.623-0.251c-0.679,0-1.491,0.574-1.491,1.219 c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.49-0.596,1.49-1.211h0.016V6.618H11.008z",
+            q_02: "M12.838,7.438V7H9.1v0.875h0.015v3.7c-0.142-0.157-0.362-0.25-0.624-0.25C7.812,11.325,7,11.898,7,12.543 c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.594,1.491-1.211H9.29V7.875h3.388v3.7c-0.143-0.157-0.361-0.25-0.623-0.25 c-0.68,0-1.492,0.573-1.492,1.218c0,0.301,0.217,0.637,0.785,0.637c0.729,0,1.49-0.594,1.49-1.211h0.016V7.438H12.838z",
+            q_03: "M13.132,9.309c0.021,0-0.646-0.861-0.833-1.155c-0.259-0.399-0.378-0.798-0.392-0.826 c-0.006-0.014-0.035-0.129-0.054-0.206V7.098h-0.006c-0.007-0.025-0.011-0.043-0.011-0.043C11.83,7.028,11.796,7,11.754,7 c-0.049,0-0.092,0.042-0.092,0.091v1.582c0,0.012,0.005,0.027,0.016,0.043v3.38c-0.143-0.157-0.361-0.251-0.623-0.251 c-0.68,0.003-1.492,0.576-1.492,1.22c0,0.301,0.217,0.637,0.784,0.637c0.727,0,1.491-0.594,1.491-1.211h0.016V8.813 c0.322,0.148,0.823,0.509,1.223,1.189c0.127,0.217,0.33,0.518,0.33,1.1c0,0.504-0.135,1.021-0.315,1.524 c-0.015,0.043-0.028,0.077-0.021,0.104c0,0.043,0.027,0.069,0.068,0.069c0.049,0,0.084-0.026,0.111-0.077 c0.313-0.56,0.436-1.209,0.436-1.849C13.65,9.974,13.132,9.309,13.132,9.309z M7.841,10.468c-0.042,0-0.077,0.021-0.091,0.056 c-0.028,0.043-0.245,0.455-0.56,0.688c-0.091,0.069-0.203,0.119-0.315,0.141c0.077-0.092,0.126-0.203,0.126-0.336 c0-0.271-0.224-0.496-0.497-0.496C6.224,10.518,6,10.741,6,11.014c0,0.379,0.371,0.553,0.7,0.553 c0.371,0,0.616-0.174,0.854-0.434l-0.798,2.492l0.189,0.057l0.98-3.088c0.007-0.007,0.007-0.021,0.007-0.035 c0-0.035-0.021-0.063-0.063-0.083C7.862,10.475,7.848,10.468,7.841,10.468z",
+            q_04: "M14.402,6.438V6H8.1v0.875h0.015v4.575c-0.142-0.157-0.362-0.25-0.624-0.25C6.812,11.2,6,11.773,6,12.418 c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211H8.29V6.875h5.953v0.438h-1.764v0.874h1.764v3.264 C14.1,11.294,13.88,11.2,13.619,11.2c-0.68,0-1.49,0.573-1.49,1.218c0,0.301,0.217,0.637,0.783,0.637 c0.729,0,1.49-0.595,1.49-1.211h0.016V6.438H14.402z M9.498,11.773c-0.196,0-0.35,0.154-0.35,0.351 s0.154,0.351,0.35,0.351c0.196,0,0.35-0.154,0.35-0.351C9.848,11.927,9.694,11.773,9.498,11.773z",
+            q_05: "M11.498,6H8.1v0.875h0.015v0.438H8.1v0.874h0.015v3.263c-0.142-0.157-0.362-0.25-0.624-0.25 C6.812,11.2,6,11.773,6,12.418c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211H8.29V8.187h1.734V7.313H8.29 V6.875h3.047v4.574c-0.143-0.156-0.361-0.249-0.623-0.249c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.595,1.491-1.211h0.015V6.438h-0.015V6z M12.723,11.773c-0.197,0-0.351,0.154-0.351,0.351 s0.153,0.351,0.351,0.351c0.196,0,0.352-0.154,0.352-0.351C13.074,11.927,12.92,11.773,12.723,11.773z",
+            q_06: "M14.049,8.79V8.353H8.1v0.875h0.015v3.7c-0.142-0.158-0.362-0.252-0.624-0.252 C6.812,12.678,6,13.252,6,13.896c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.596,1.491-1.211H8.29V9.228h2.711v3.699 c-0.143-0.157-0.361-0.251-0.623-0.251c-0.679,0.002-1.491,0.576-1.491,1.221c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.596,1.491-1.211h0.015V9.228h2.712v3.702c-0.142-0.159-0.361-0.254-0.623-0.254 c-0.68,0.002-1.492,0.576-1.492,1.221c0,0.301,0.218,0.637,0.785,0.637c0.728,0,1.488-0.596,1.488-1.211h0.018V8.79H14.049z M10.792,7.283c0.479,0,0.845-0.321,0.845-0.747c0-0.247-0.152-0.387-0.373-0.456 c0.148-0.047,0.209-0.073,0.285-0.124c0.149-0.099,0.24-0.273,0.24-0.451c0-0.302-0.24-0.505-0.596-0.505 c-0.346,0-0.639,0.216-0.639,0.476c0,0.131,0.078,0.22,0.198,0.22c0.104,0,0.183-0.076,0.183-0.182 c0-0.053-0.018-0.091-0.066-0.142c-0.031-0.029-0.045-0.051-0.045-0.074c0-0.076,0.158-0.155,0.309-0.155 c0.213,0,0.34,0.117,0.34,0.314c0,0.283-0.199,0.55-0.412,0.55c-0.01,0-0.039-0.003-0.074-0.006 c-0.092-0.006-0.092-0.006-0.109-0.006c-0.068,0-0.105,0.032-0.105,0.089c0,0.051,0.035,0.083,0.092,0.083 c0.016,0,0.039-0.003,0.063-0.006c0.045-0.01,0.094-0.013,0.12-0.013c0.147,0,0.251,0.133,0.251,0.33 c0,0.343-0.168,0.673-0.553,0.673c-0.18,0-0.331-0.089-0.331-0.19c0-0.036,0.013-0.048,0.063-0.07 c0.092-0.042,0.129-0.099,0.129-0.185c0-0.111-0.088-0.197-0.204-0.197c-0.137,0-0.226,0.108-0.226,0.273 C10.176,7.09,10.411,7.283,10.792,7.283z M6.174,6.253 L9.001,6.253 L9.001,6.079 L6,6.079 L6,7.478 L6.174,7.478 Z M11.846,6.079 L11.846,6.253 L14.672,6.253 L14.672,7.478 L14.848,7.478 L14.848,6.079 Z",
+            q_07: "M7.841,11.299c-0.042,0-0.077,0.021-0.091,0.057c-0.028,0.043-0.245,0.455-0.56,0.688 c-0.091,0.068-0.203,0.119-0.315,0.143c0.077-0.094,0.126-0.203,0.126-0.336c0-0.273-0.224-0.498-0.497-0.498 C6.224,11.35,6,11.572,6,11.846c0,0.377,0.371,0.553,0.7,0.553c0.371,0,0.616-0.176,0.854-0.434l-0.798,2.491l0.189,0.056 l0.98-3.086c0.007-0.008,0.007-0.021,0.007-0.035c0-0.035-0.021-0.063-0.063-0.084C7.862,11.307,7.848,11.299,7.841,11.299z M13.973,8.353H10.91v0.875h0.014v3.699c-0.143-0.157-0.362-0.251-0.623-0.251c-0.679,0.002-1.491,0.576-1.491,1.221 c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.596,1.491-1.211H11.1V9.228h2.711v3.698 c-0.143-0.156-0.363-0.25-0.623-0.25c-0.678,0.002-1.49,0.576-1.49,1.221c0,0.301,0.217,0.637,0.783,0.637 c0.729,0,1.492-0.596,1.492-1.211h0.014V8.79h-0.014V8.353z M10.23,7.283c0.48,0,0.845-0.321,0.845-0.747 c-0.001-0.247-0.153-0.387-0.376-0.456c0.148-0.047,0.209-0.073,0.285-0.124c0.148-0.099,0.242-0.273,0.242-0.451 C11.227,5.203,10.984,5,10.629,5c-0.346,0-0.638,0.216-0.638,0.476c0,0.131,0.079,0.22,0.2,0.22 c0.105,0,0.182-0.076,0.182-0.182c0-0.053-0.017-0.091-0.067-0.142c-0.032-0.029-0.044-0.051-0.044-0.074 c0-0.076,0.159-0.155,0.308-0.155c0.213,0,0.34,0.117,0.34,0.314c0,0.283-0.199,0.55-0.413,0.55 c-0.009,0-0.038-0.003-0.072-0.006c-0.093-0.006-0.093-0.006-0.112-0.006c-0.07,0-0.108,0.032-0.108,0.089 c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.038-0.003,0.064-0.006c0.044-0.01,0.091-0.013,0.121-0.013 c0.148,0,0.25,0.133,0.25,0.33c0,0.343-0.168,0.673-0.552,0.673c-0.178,0-0.33-0.089-0.33-0.19 c0-0.036,0.013-0.048,0.063-0.07c0.092-0.042,0.13-0.099,0.13-0.185c0-0.111-0.089-0.197-0.203-0.197 c-0.137,0-0.226,0.108-0.226,0.273C9.614,7.09,9.849,7.283,10.23,7.283z M6.174,6.253 L9.001,6.253 L9.001,6.079 L6,6.079 L6,7.478 L6.174,7.478 Z M11.846,6.079 L11.846,6.253 L14.672,6.253 L14.672,7.478 L14.848,7.478 L14.848,6.079 Z",
+            q_08: "M15.116,10.667c0.021,0-0.646-0.861-0.834-1.155c-0.259-0.399-0.378-0.798-0.392-0.826 c-0.006-0.015-0.037-0.138-0.056-0.213V8.457h-0.004c-0.007-0.026-0.011-0.044-0.011-0.044c-0.008-0.028-0.043-0.056-0.084-0.056 c-0.049,0-0.092,0.042-0.092,0.091v1.584c0,0.011,0.004,0.026,0.015,0.042v3.382c-0.143-0.157-0.363-0.25-0.623-0.25 c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211h0.015V10.17 c0.322,0.147,0.823,0.507,1.224,1.191c0.127,0.217,0.33,0.519,0.33,1.1c0,0.504-0.134,1.021-0.314,1.525 c-0.016,0.041-0.027,0.076-0.021,0.104c0,0.041,0.028,0.069,0.069,0.069c0.05,0,0.084-0.028,0.112-0.077 c0.313-0.561,0.435-1.211,0.435-1.85C15.634,11.332,15.116,10.667,15.116,10.667z M6.737,9.512 C6.478,9.115,6.359,8.716,6.345,8.688C6.34,8.673,6.309,8.549,6.29,8.473V8.457H6.286C6.279,8.432,6.275,8.415,6.275,8.415 C6.268,8.387,6.233,8.359,6.191,8.359C6.142,8.359,6.1,8.401,6.1,8.45v1.582c0,0.011,0.004,0.027,0.015,0.042v3.381 c-0.142-0.157-0.362-0.25-0.624-0.25C4.812,13.206,4,13.779,4,14.424c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.595,1.491-1.211H6.29v-3.679c0.323,0.147,0.825,0.509,1.225,1.19c0.126,0.217,0.329,0.519,0.329,1.1 c0,0.504-0.133,1.021-0.315,1.525C7.514,14.027,7.5,14.063,7.507,14.09c0,0.041,0.028,0.069,0.07,0.069 c0.049,0,0.084-0.028,0.112-0.077c0.315-0.561,0.434-1.211,0.434-1.85c-0.035-0.9-0.553-1.565-0.553-1.565 C7.591,10.667,6.926,9.806,6.737,9.512z M10.577,11.827c-0.042,0-0.077,0.021-0.091,0.056 c-0.028,0.043-0.245,0.455-0.56,0.688c-0.091,0.068-0.203,0.117-0.315,0.141c0.077-0.091,0.126-0.203,0.126-0.336 c0-0.271-0.224-0.497-0.497-0.497c-0.28,0-0.504,0.226-0.504,0.497c0,0.378,0.371,0.553,0.7,0.553 c0.371,0,0.616-0.175,0.854-0.434l-0.8,2.49l0.189,0.056l0.98-3.087c0.007-0.008,0.007-0.021,0.007-0.035 c0-0.035-0.021-0.063-0.063-0.084C10.596,11.834,10.583,11.827,10.577,11.827z M10.166,5C9.82,5,9.528,5.216,9.528,5.476 c0,0.13,0.079,0.219,0.2,0.219c0.105,0,0.182-0.076,0.182-0.181c0-0.054-0.017-0.092-0.067-0.143 C9.81,5.343,9.797,5.32,9.797,5.298c0-0.076,0.159-0.156,0.309-0.156c0.212,0,0.339,0.118,0.339,0.314 c0,0.282-0.2,0.549-0.413,0.549C10.023,6.006,9.995,6.003,9.96,6C9.867,5.993,9.867,5.993,9.848,5.993 c-0.07,0-0.108,0.032-0.108,0.089c0,0.051,0.036,0.083,0.093,0.083c0.015,0,0.038-0.003,0.063-0.006 C9.94,6.15,9.988,6.146,10.017,6.146c0.149,0,0.25,0.133,0.25,0.33c0,0.343-0.168,0.673-0.553,0.673 c-0.178,0-0.33-0.089-0.33-0.19c0-0.035,0.013-0.047,0.063-0.07c0.092-0.041,0.13-0.098,0.13-0.184 c0-0.111-0.089-0.197-0.203-0.197c-0.137,0-0.226,0.108-0.226,0.273c0,0.309,0.235,0.501,0.616,0.501 c0.48,0,0.845-0.32,0.845-0.746c0-0.247-0.151-0.387-0.374-0.456c0.149-0.048,0.209-0.074,0.286-0.125 c0.149-0.098,0.242-0.273,0.242-0.451C10.764,5.203,10.521,5,10.166,5z M5.226,7.477 L5.4,7.477 L5.4,6.252 L8.538,6.252 L8.538,6.078 L5.226,6.078 Z M14.52,7.477 L14.695,7.477 L14.695,6.078 L11.381,6.078 L11.381,6.252 L14.52,6.252 Z",
+            q_09: "M13.877,11.299c-0.041,0-0.076,0.021-0.09,0.057c-0.029,0.043-0.246,0.455-0.561,0.688 c-0.093,0.068-0.203,0.119-0.314,0.143c0.076-0.094,0.125-0.203,0.125-0.336c0-0.273-0.225-0.498-0.496-0.498 c-0.279,0-0.504,0.225-0.504,0.498c0,0.377,0.371,0.553,0.699,0.553c0.371,0,0.615-0.176,0.854-0.436l-0.797,2.491l0.188,0.058 l0.979-3.088c0.008-0.008,0.008-0.021,0.008-0.033c0.001-0.039-0.021-0.067-0.063-0.088 C13.898,11.307,13.883,11.299,13.877,11.299z M11.162,8.353H8.1v0.875h0.015v3.7c-0.142-0.158-0.362-0.252-0.624-0.252 C6.812,12.678,6,13.252,6,13.896c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.596,1.491-1.211H8.29V9.228h2.711v3.699 c-0.143-0.157-0.361-0.251-0.623-0.251c-0.679,0.002-1.491,0.576-1.491,1.221c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.596,1.491-1.211h0.015V8.79h-0.015V8.353z M11.398,5.505c0-0.302-0.24-0.505-0.597-0.505 c-0.347,0-0.639,0.216-0.639,0.476c0,0.131,0.08,0.22,0.201,0.22c0.104,0,0.18-0.076,0.18-0.182 c0-0.053-0.017-0.091-0.066-0.142c-0.032-0.029-0.044-0.051-0.044-0.074c0-0.076,0.159-0.155,0.308-0.155 c0.213,0,0.34,0.117,0.34,0.314c0,0.283-0.2,0.55-0.412,0.55c-0.01,0-0.039-0.003-0.072-0.006 c-0.094-0.006-0.094-0.006-0.112-0.006c-0.07,0-0.108,0.032-0.108,0.089c0,0.051,0.034,0.083,0.091,0.083 c0.017,0,0.039-0.003,0.064-0.006c0.044-0.01,0.092-0.013,0.119-0.013c0.148,0,0.25,0.133,0.25,0.33 c0,0.343-0.168,0.673-0.55,0.673c-0.178,0-0.331-0.089-0.331-0.19c0-0.036,0.013-0.048,0.063-0.07 c0.092-0.042,0.13-0.099,0.13-0.185c0-0.111-0.089-0.197-0.203-0.197c-0.136,0-0.225,0.108-0.225,0.273 c0,0.308,0.235,0.501,0.616,0.501c0.479,0,0.844-0.321,0.844-0.747c0.001-0.247-0.15-0.387-0.373-0.456 c0.148-0.047,0.209-0.073,0.285-0.124C11.307,5.857,11.398,5.683,11.398,5.505z M7.4,6.253 L9.175,6.253 L9.175,6.079 L7.226,6.079 L7.226,7.478 L7.4,7.478 Z M12.02,6.079 L12.02,6.253 L13.793,6.253 L13.793,7.478 L13.969,7.478 L13.969,6.079 Z",
+            q_10: "M10.546,9.512c-0.258-0.399-0.377-0.798-0.391-0.826c-0.005-0.014-0.035-0.135-0.054-0.211V8.457h-0.004 c-0.007-0.026-0.011-0.044-0.011-0.044c-0.007-0.028-0.042-0.056-0.084-0.056C9.952,8.358,9.91,8.4,9.91,8.449l0.001,1.583 c0,0.011,0.004,0.027,0.015,0.042v3.381c-0.143-0.157-0.362-0.25-0.624-0.25c-0.679,0-1.491,0.573-1.491,1.218 c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211h0.015v-3.679c0.323,0.148,0.824,0.509,1.224,1.19 c0.127,0.217,0.328,0.519,0.328,1.1c0,0.504-0.133,1.021-0.314,1.525c-0.014,0.041-0.027,0.076-0.021,0.104 c0,0.041,0.029,0.069,0.07,0.069c0.049,0,0.084-0.028,0.112-0.077c0.313-0.561,0.435-1.211,0.435-1.85 c-0.035-0.9-0.554-1.565-0.554-1.565C11.4,10.667,10.734,9.806,10.546,9.512z M6.841,11.827c-0.042,0-0.077,0.021-0.091,0.056 c-0.028,0.043-0.245,0.455-0.56,0.688c-0.091,0.068-0.203,0.117-0.315,0.141c0.077-0.091,0.126-0.203,0.126-0.336 c0-0.271-0.224-0.497-0.497-0.497C5.224,11.876,5,12.1,5,12.373c0,0.378,0.371,0.553,0.7,0.553 c0.371,0,0.616-0.175,0.854-0.434l-0.798,2.492l0.189,0.056l0.98-3.087c0.007-0.008,0.007-0.021,0.007-0.035 c0-0.035-0.021-0.063-0.063-0.084C6.862,11.834,6.848,11.827,6.841,11.827z M14.385,11.827c-0.041,0-0.076,0.021-0.09,0.056 c-0.029,0.043-0.246,0.455-0.561,0.688c-0.092,0.068-0.203,0.117-0.314,0.141c0.076-0.091,0.125-0.203,0.125-0.336 c0-0.271-0.225-0.497-0.496-0.497c-0.279,0-0.504,0.226-0.504,0.497c0,0.378,0.371,0.553,0.699,0.553 c0.371,0,0.615-0.175,0.854-0.434l-0.797,2.49l0.188,0.058l0.979-3.087c0.009-0.007,0.009-0.021,0.009-0.035 c0-0.037-0.021-0.064-0.063-0.086C14.406,11.834,14.393,11.827,14.385,11.827z M9.542,7.282c0.479,0,0.844-0.32,0.844-0.746 c0.002-0.247-0.15-0.387-0.372-0.456c0.149-0.048,0.209-0.074,0.286-0.125c0.15-0.098,0.242-0.273,0.242-0.451 C10.541,5.203,10.299,5,9.944,5C9.598,5,9.306,5.216,9.306,5.476c0,0.13,0.079,0.219,0.2,0.219 c0.105,0,0.181-0.076,0.181-0.181c0-0.054-0.016-0.092-0.067-0.143C9.588,5.343,9.576,5.32,9.576,5.298 c0-0.076,0.159-0.156,0.308-0.156c0.212,0,0.339,0.118,0.339,0.314c0,0.282-0.2,0.549-0.413,0.549 C9.801,6.006,9.772,6.003,9.738,6C9.646,5.993,9.646,5.993,9.626,5.993c-0.07,0-0.108,0.032-0.108,0.089 c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.038-0.003,0.063-0.006C9.717,6.15,9.765,6.146,9.794,6.146 c0.149,0,0.25,0.133,0.25,0.33c0,0.343-0.168,0.673-0.552,0.673c-0.178,0-0.331-0.089-0.331-0.19 c0-0.035,0.013-0.047,0.063-0.07c0.093-0.041,0.131-0.098,0.131-0.184c0-0.111-0.089-0.197-0.203-0.197 c-0.137,0-0.226,0.108-0.226,0.273C8.926,7.09,9.161,7.282,9.542,7.282z M5.174,6.252 L8.316,6.252 L8.316,6.078 L5,6.078 L5,7.477 L5.174,7.477 Z M11.16,6.078 L11.16,6.252 L14.301,6.252 L14.301,7.477 L14.477,7.477 L14.477,6.078 Z",
+            q_11: "M15.198,10.67c0.021,0-0.646-0.861-0.835-1.155c-0.258-0.399-0.377-0.798-0.391-0.826 c-0.006-0.014-0.036-0.134-0.055-0.209V8.458h-0.005c-0.007-0.025-0.011-0.042-0.011-0.042c-0.008-0.028-0.043-0.056-0.084-0.056 c-0.049,0-0.092,0.042-0.092,0.091v1.582c0,0.012,0.005,0.027,0.016,0.042v3.382c-0.143-0.158-0.363-0.251-0.624-0.251 c-0.679,0-1.491,0.574-1.491,1.218c0,0.302,0.217,0.638,0.785,0.638c0.727,0,1.49-0.596,1.49-1.211h0.016v-3.68 c0.322,0.147,0.822,0.509,1.223,1.191c0.127,0.218,0.33,0.519,0.33,1.099c0,0.504-0.134,1.022-0.313,1.526 c-0.017,0.042-0.028,0.076-0.021,0.104c0,0.043,0.026,0.07,0.068,0.07c0.049,0,0.084-0.027,0.111-0.077 c0.313-0.56,0.435-1.211,0.435-1.849C15.716,11.334,15.198,10.67,15.198,10.67z M5.841,11.828c-0.042,0-0.077,0.021-0.091,0.056 c-0.028,0.042-0.245,0.455-0.56,0.687c-0.091,0.07-0.203,0.119-0.315,0.142c0.077-0.091,0.126-0.203,0.126-0.336 c0-0.272-0.224-0.497-0.497-0.497C4.224,11.877,4,12.102,4,12.374c0,0.378,0.371,0.553,0.7,0.553 c0.371,0,0.616-0.175,0.854-0.435l-0.798,2.492l0.189,0.057l0.98-3.087c0.007-0.007,0.007-0.021,0.007-0.035 c0-0.035-0.021-0.063-0.063-0.084C5.862,11.835,5.848,11.828,5.841,11.828z M9.655,11.828c-0.042,0-0.077,0.021-0.091,0.056 c-0.028,0.042-0.245,0.455-0.56,0.687c-0.091,0.07-0.203,0.119-0.315,0.142c0.077-0.091,0.126-0.203,0.126-0.336 c0-0.272-0.224-0.497-0.497-0.497c-0.28,0-0.504,0.225-0.504,0.497c0,0.378,0.371,0.554,0.7,0.554 c0.371,0,0.616-0.176,0.854-0.436l-0.798,2.49l0.189,0.057l0.979-3.087c0.007-0.007,0.007-0.021,0.007-0.035 c0.001-0.035-0.02-0.063-0.062-0.084C9.676,11.835,9.662,11.828,9.655,11.828z M10.191,5.505 C10.191,5.203,9.95,5,9.595,5C9.249,5,8.957,5.216,8.957,5.476c0,0.131,0.079,0.22,0.2,0.22 c0.105,0,0.181-0.076,0.181-0.182c0-0.053-0.016-0.091-0.067-0.142C9.239,5.343,9.226,5.321,9.226,5.298 c0-0.076,0.159-0.155,0.308-0.155c0.213,0,0.34,0.117,0.34,0.314c0,0.283-0.2,0.55-0.413,0.55 c-0.01,0-0.038-0.003-0.073-0.006C9.296,5.994,9.296,5.994,9.277,5.994c-0.07,0-0.108,0.032-0.108,0.089 c0,0.051,0.035,0.083,0.092,0.083c0.016,0,0.038-0.003,0.063-0.006c0.044-0.01,0.092-0.013,0.121-0.013 c0.149,0,0.251,0.133,0.251,0.33c0,0.343-0.168,0.673-0.553,0.673c-0.178,0-0.33-0.089-0.33-0.19 c0-0.036,0.013-0.048,0.063-0.07c0.092-0.042,0.13-0.099,0.13-0.185c0-0.111-0.089-0.197-0.203-0.197 c-0.137,0-0.226,0.108-0.226,0.273c0,0.308,0.235,0.501,0.616,0.501c0.479,0,0.845-0.321,0.845-0.747 c0.001-0.246-0.151-0.386-0.373-0.455C9.813,6.032,9.874,6.007,9.95,5.956C10.099,5.857,10.191,5.683,10.191,5.505z M4.174,6.253 L7.967,6.253 L7.967,6.079 L4,6.079 L4,7.478 L4.174,7.478 Z M14.602,7.478 L14.777,7.478 L14.777,6.079 L10.811,6.079 L10.811,6.253 L14.602,6.253 Z",
+            q_12: "M14.721,6.438V6H8.1v0.875h0.015v0.438H8.1v0.874h0.015v3.263c-0.142-0.157-0.362-0.25-0.624-0.25 C6.812,11.2,6,11.773,6,12.418c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211H8.29V8.187h3.047v3.262 c-0.143-0.156-0.361-0.249-0.623-0.249c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.595,1.491-1.211h0.015V6.875h3.048v4.576c-0.143-0.157-0.363-0.251-0.625-0.251c-0.678,0-1.49,0.573-1.49,1.218 c0,0.301,0.218,0.637,0.785,0.637c0.727,0,1.49-0.595,1.49-1.211h0.016V6.438H14.721z M11.337,7.313H8.29V6.875h3.047V7.313z",
+            q_13: "M15.332,6.438V6H7.1v0.875h0.015v4.575c-0.142-0.157-0.362-0.25-0.624-0.25C5.812,11.2,5,11.773,5,12.418 c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211H7.29V6.875h4.659v0.438h-0.015v0.874h0.015v3.263 c-0.143-0.157-0.362-0.25-0.623-0.25c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.595,1.491-1.211h0.015V8.187h3.048v3.263c-0.143-0.157-0.361-0.25-0.623-0.25c-0.68,0-1.49,0.573-1.49,1.218 c0,0.301,0.217,0.637,0.783,0.637c0.729,0,1.49-0.595,1.49-1.211h0.016V6.438H15.332z M12.124,7.313V6.875h3.048v0.438H12.124z",
+            q_14: "M14.332,6.438V6H6.1v0.875h0.015v0.438H6.1v0.874h0.015v3.263c-0.142-0.157-0.362-0.25-0.624-0.25 C4.812,11.2,4,11.773,4,12.418c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211H6.29V8.187h1.734V7.313H6.29V6.875 h3.048v4.575c-0.143-0.157-0.362-0.25-0.624-0.25c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.595,1.491-1.211h0.014V6.875h4.66v0.438h-1.765v0.874h1.765v3.263c-0.143-0.157-0.361-0.25-0.623-0.25 c-0.68,0-1.49,0.573-1.49,1.218c0,0.301,0.217,0.637,0.783,0.637c0.729,0,1.49-0.595,1.49-1.211h0.016V6.438H14.332z",
+            q_15: "M15.943,6.438V6H6.1v0.875h0.015v0.438H6.1v0.874h0.015v3.263c-0.142-0.157-0.362-0.25-0.624-0.25 C4.812,11.2,4,11.773,4,12.418c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.595,1.491-1.211H6.29V8.187h3.048v3.263 c-0.143-0.157-0.362-0.25-0.624-0.25c-0.679,0-1.491,0.573-1.491,1.218c0,0.301,0.217,0.637,0.784,0.637 c0.728,0,1.491-0.595,1.491-1.211h0.014V8.187h3.048v3.264c-0.143-0.158-0.362-0.251-0.623-0.251c-0.68,0-1.492,0.573-1.492,1.218 c0,0.301,0.217,0.637,0.785,0.637c0.729,0,1.49-0.595,1.49-1.211h0.016V8.187h3.047v3.264c-0.143-0.157-0.362-0.251-0.623-0.251 c-0.68,0-1.491,0.573-1.491,1.218c0,0.301,0.218,0.637,0.784,0.637c0.729,0,1.49-0.595,1.49-1.211h0.016V6.438H15.943z M6.29,7.313 V6.875h3.048v0.438H6.29z M9.512,7.313V6.875h3.048v0.438H9.512z M12.736,7.313V6.875h3.047v0.438H12.736z",
+            q_16: "M17.268,10.379c0-0.364-0.1-0.693-0.336-1.008c-0.33-0.434-0.688-0.798-0.953-1.183 c-0.267-0.385-0.461-1.106-0.461-1.106C15.504,7.035,15.496,7,15.42,7c-0.084,0-0.105,0.035-0.105,0.084V9.75 c0,0.004,0.01,0.009,0.014,0.014v2.332c-0.143-0.157-0.361-0.251-0.623-0.251c-0.68,0.003-1.49,0.576-1.49,1.22 c0,0.301,0.217,0.637,0.783,0.637c0.729,0,1.49-0.594,1.49-1.211h0.016V9.864c0.229,0.111,0.688,0.437,1.061,0.992 c0.238,0.356,0.295,0.608,0.295,0.849c0,0.043,0,0.077-0.008,0.119c0,0.168-0.049,0.524-0.152,0.805 c-0.008,0.035-0.028,0.077-0.028,0.112c0,0.027,0.015,0.056,0.05,0.076c0.014,0.008,0.021,0.008,0.034,0.008 c0.05,0,0.077-0.057,0.104-0.1c0.125-0.194,0.309-0.574,0.309-0.966c0-0.202-0.016-0.37-0.035-0.519 C17.203,10.98,17.268,10.723,17.268,10.379z M16.952,10.675c-0.056-0.112-0.119-0.203-0.175-0.28 c-0.189-0.245-0.399-0.469-0.742-0.812c-0.273-0.273-0.398-0.511-0.447-0.693c-0.008-0.035-0.015-0.084-0.021-0.14 c0.357,0,0.813,0.483,1.063,0.812c0.272,0.357,0.336,0.637,0.336,0.903C16.966,10.536,16.959,10.605,16.952,10.675z M8.992,9.371C8.663,8.939,8.306,8.575,8.04,8.19C7.773,7.805,7.578,7.084,7.578,7.084C7.563,7.035,7.557,7,7.479,7 C7.396,7,7.375,7.035,7.375,7.084V9.75c0,0.004,0.01,0.01,0.015,0.015v2.331c-0.142-0.157-0.362-0.251-0.624-0.251 c-0.679,0.003-1.491,0.576-1.491,1.22c0,0.301,0.217,0.637,0.784,0.637c0.728,0,1.491-0.594,1.491-1.211h0.015V9.863 c0.227,0.111,0.688,0.437,1.063,0.992c0.238,0.356,0.294,0.608,0.294,0.849c0,0.043,0,0.077-0.007,0.119 c0,0.168-0.049,0.524-0.154,0.805c-0.007,0.035-0.028,0.077-0.028,0.112c0,0.027,0.014,0.056,0.049,0.076 c0.014,0.008,0.021,0.008,0.035,0.008c0.049,0,0.077-0.057,0.105-0.1C9.048,12.53,9.23,12.15,9.23,11.759 c0-0.202-0.014-0.37-0.035-0.519c0.07-0.26,0.133-0.518,0.133-0.861C9.328,10.015,9.23,9.686,8.992,9.371z M9.012,10.675 c-0.055-0.112-0.118-0.203-0.175-0.28C8.648,10.15,8.438,9.926,8.095,9.583C7.823,9.31,7.697,9.072,7.647,8.89 C7.641,8.854,7.634,8.806,7.626,8.75c0.357,0,0.812,0.483,1.064,0.812c0.273,0.357,0.336,0.637,0.336,0.903 C9.026,10.536,9.019,10.605,9.012,10.675z M12.242,8.718c-0.042,0-0.07,0.021-0.092,0.056c-0.168,0.336-0.447,0.714-0.832,0.812 c0.084-0.098,0.119-0.21,0.119-0.336c0-0.273-0.246-0.483-0.52-0.483c-0.279,0.014-0.483,0.245-0.483,0.518 c0.014,0.392,0.392,0.525,0.721,0.525c0.351-0.014,0.621-0.189,0.832-0.462l-0.313,1.113c-0.098,0.329-0.498,0.784-0.854,0.875 c0.076-0.098,0.119-0.217,0.119-0.336c0-0.279-0.236-0.482-0.51-0.482c-0.28,0-0.49,0.237-0.49,0.52 c0,0.21,0.147,0.385,0.329,0.445c0.133,0.059,0.251,0.07,0.392,0.07c0.352-0.014,0.623-0.188,0.834-0.462l-0.717,2.556l0.189,0.049 l1.367-4.852C12.34,8.83,12.34,8.823,12.34,8.809c0-0.035-0.021-0.07-0.063-0.084C12.264,8.718,12.25,8.718,12.242,8.718z M4.303,8.718c-0.042,0-0.07,0.021-0.091,0.056C4.044,9.11,3.764,9.488,3.379,9.586c0.084-0.098,0.119-0.21,0.119-0.336 c0-0.273-0.245-0.483-0.518-0.483C2.7,8.781,2.497,9.012,2.497,9.285C2.511,9.677,2.889,9.81,3.218,9.81 c0.35-0.014,0.623-0.189,0.833-0.462l-0.315,1.113c-0.098,0.329-0.497,0.784-0.854,0.875C2.959,11.238,3.001,11.119,3.001,11 c0-0.279-0.238-0.482-0.511-0.482c-0.28,0-0.49,0.237-0.49,0.52c0,0.21,0.147,0.385,0.329,0.445 c0.133,0.059,0.252,0.07,0.392,0.07c0.35-0.014,0.623-0.188,0.833-0.462L2.84,13.646l0.189,0.049l1.365-4.852 C4.401,8.83,4.401,8.823,4.401,8.809c0-0.035-0.021-0.07-0.063-0.084C4.324,8.718,4.31,8.718,4.303,8.718z"
+        };
+
+        // 获取音符SVG的辅助函数
+        function getNoteSvgHtml(key, color = "#222") {
+            const pathData = NOTE_SVGS[key] || NOTE_SVGS.none;
+            return `<svg viewBox="0 0 20 20"><path fill="${color}" d="${pathData}"/></svg>`;
+        }
+
+        // 绑定 q_01 ~ q_16 对应 SVG（与 e_ 系列共享相同的路径数据）
+        for (let i = 1; i <= 16; i++) {
+            const key = (i < 10 ? '0' : '') + i;
+            if (!NOTE_SVGS[`q_${key}`]) {
+                NOTE_SVGS[`q_${key}`] = NOTE_SVGS[`e_${key}`] || NOTE_SVGS.none;
+            }
+        }
+
+        // --- 预设节奏型映射表 ---
+        const PRESET_RHYTHMS = {
+            "O": "01",
+            "OO": "02",
+            "XO": "03",
+            "OXXO": "04",
+            "OOXX": "05",
+            "OOO": "06",
+            "XOO": "07",
+            "OXO": "08",
+            "OOX": "09",
+            "XOX": "10",
+            "XXO": "11",
+            "OOOX": "12",
+            "OXOO": "13",
+            "OOXO": "14",
+            "OOOO": "15",
+            "XOXO": "16"
+        };
+
+// ==========================================
+// 1. 音效数据结构与预加载系统
+// ==========================================
+
+function playSound(type, time) {
+    if (!SoundSystem.audioCtx || type === 'slnt') return;
+    const osc = SoundSystem.audioCtx.createOscillator();
+    const gain = SoundSystem.audioCtx.createGain();
+    let freq = 600;
+    if (type === 'full') freq = 1200;
+    if (type === 'half') freq = 900;
+    osc.frequency.setValueAtTime(freq, time);
+    gain.gain.setValueAtTime(1, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    osc.connect(gain);
+    gain.connect(SoundSystem.masterGain);
+    osc.start(time);
+    osc.stop(time + 0.06);
+}
+
+const SoundSystem = {
+    audioCtx: null,
+    currentPreset: 0,
+    audioBuffers: {},
+    globalMute: false,
+    beatCounter: 0,
+
+    initAudioContext() {
+        if (!this.audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioCtx = new AudioContext();
+            // 创建全局主增益节点
+            this.masterGain = this.audioCtx.createGain();
+            this.masterGain.gain.value = 1;
+            this.masterGain.connect(this.audioCtx.destination);
+        }
+        if (this.audioCtx.state === 'suspended') {
+            this.audioCtx.resume();
+        }
+        return this.audioCtx;
+    },
+
+    // 设置全局主音量（0~1），增加 audioCtx 检查
+    setMasterVolume(vol) {
+        if (this.masterGain && this.audioCtx) {
+            this.masterGain.gain.setValueAtTime(vol, this.audioCtx.currentTime);
+        }
+    },
+
+    preloadPreset(presetNum) {
+        if (presetNum === 0) return;
+        this.initAudioContext();
+        let files = [];
+        if (presetNum === 1) {
+            for (let i = 0; i <= 10; i++) files.push(i);
+        } else if (presetNum >= 2 && presetNum <= 7) {
+            files = [1, 2, 3];
+        }
+        files.forEach(index => {
+            const key = `${presetNum}_${index}`;
+            if (this.audioBuffers[key]) return;
+            const url = `./sound/${presetNum}/${index}.mp3`;
+            fetch(url)
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.arrayBuffer();
+                })
+                .then(data => this.audioCtx.decodeAudioData(data))
+                .then(buffer => {
+                    this.audioBuffers[key] = buffer;
+                })
+                .catch(err => console.warn(`[SoundSystem] 预加载失败: ${url}`, err));
+        });
+    },
+
+    playSample(presetNum, sampleIndex) {
+        this.initAudioContext();
+        const key = `${presetNum}_${sampleIndex}`;
+        const buffer = this.audioBuffers[key];
+        if (!buffer) return;
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.masterGain);
+        source.start(0);
+    },
+
+    trigger(beatIndex, totalBeats, accentType, row) {
+        // 注意：这里不再有任何基于节拍器的静音判定，静音交给 masterGain 处理
+        if (accentType === 'zero') return;
+
+        if (this.currentPreset === 0) {
+            this.initAudioContext();
+            const time = this.audioCtx.currentTime;
+            const type = accentType === 'strong' ? 'full' :
+                accentType === 'sub' ? 'half' : 'zero';
+            playSound(type, time);
+            return;
+        }
+
+        if (this.currentPreset === 1) {
+            let num = 0;
+            if (row === 0) {
+                num = beatIndex + 1;
+                if (num > 9) num = 0;
+            }
+            this.playSample(1, num);
+            return;
+        }
+
+        if (this.currentPreset >= 2 && this.currentPreset <= 7) {
+            let sampleIdx = 3;
+            if (accentType === 'strong') sampleIdx = 1;
+            else if (accentType === 'sub') sampleIdx = 2;
+            this.playSample(this.currentPreset, sampleIdx);
+            return;
+        }
+    }
+};
+
+SoundSystem.preloadPreset(1);
+
+// --- 全局状态 ---
+const MAX_COL = 16;
+const MIN_BPM = 30;
+const MAX_BPM = 300;
+let currentBpm = 70;
+let isPlaying = false;
+let isEditMode = false;
+let tempBpmStr = "";
+let tapTimestamps = [];
+
+let timeSigNum = 4;
+let timeSigDen = 4;
+
+let matrixData = [
+    ['full'],
+    ['zero'],
+    ['zero'],
+    ['zero']
+];
+
+const BEAT_STATES = ['full', 'half', 'zero', 'slnt'];
+
+let flatBeatList = [];
+let currentFlatIndex = 0;
+let nextNoteTime = 0;
+let timerWorker = null;
+let audioCtx = null;
+
+let timerInterval = null;
+let remainingSeconds = 0;
+let isCountdownRunning = false;
+let isCountdownPaused = false;
+
+// DOM 元素
+const matrixWrapper = document.getElementById('matrixWrapper');
+const matrixStage = document.getElementById('matrixStage');
+const editControls = document.getElementById('editControls');
+const btnExitEdit = document.getElementById('btnExitEdit');
+const tempoSection = document.getElementById('tempoSection');
+const divider = document.getElementById('divider');
+const mainMenu = document.getElementById('mainMenu');
+const btnSyncopation = document.getElementById('btnSyncopation');
+const playBtn = document.getElementById('playBtn');
+const bpmNumberEl = document.getElementById('bpmNumber');
+const tempoNameEl = document.getElementById('tempoName');
+const timeSigSub = document.getElementById('timeSigSub');
+
+const runningDashboard = document.getElementById('runningDashboard');
+const runningTimeSig = document.getElementById('runningTimeSig');
+const runningBpm = document.getElementById('runningBpm');
+const countdownHint = document.getElementById('countdownHint');
+const countdownTime = document.getElementById('countdownTime');
+const countdownContainer = document.getElementById('countdownContainer');
+const trainRunContainer = document.getElementById('trainRunContainer');
+const trainRunStatus = document.getElementById('trainRunStatus');
+const tempoBarChart = document.getElementById('tempoBarChart');
+const trainRunStats = document.getElementById('trainRunStats');
+const trainBarCount = document.getElementById('trainBarCount');
+const trainTimeLeft = document.getElementById('trainTimeLeft');
+const trainRunStopBtn = document.getElementById('trainRunStopBtn');
+
+const setupControls = document.getElementById('setupControls');
+const runningControls = document.getElementById('runningControls');
+const pauseContinueBtn = document.getElementById('pauseContinueBtn');
+const stopBtn = document.getElementById('stopBtn');
+
+const modalOverlay = document.getElementById('modalOverlay');
+const modalDisplay = document.getElementById('modalDisplay');
+const modalCancel = document.getElementById('modalCancel');
+const modalConfirm = document.getElementById('modalConfirm');
+const tapBtnEl = document.getElementById('tapBtn');
+const btnClear = document.getElementById('btnClear');
+const btnBackspace = document.getElementById('btnBackspace');
+const bpmTrigger = document.getElementById('bpmTrigger');
+const btnMinus = document.getElementById('btnMinus');
+const btnPlus = document.getElementById('btnPlus');
+const numKeys = document.querySelectorAll('.key-btn[data-val]');
+
+const timeSigModal = document.getElementById('timeSigModal');
+const btnTimeSig = document.getElementById('btnTimeSig');
+const tsCancel = document.getElementById('tsCancel');
+const tsConfirm = document.getElementById('tsConfirm');
+const tsNumMinus = document.getElementById('tsNumMinus');
+const tsNumPlus = document.getElementById('tsNumPlus');
+const tsDenMinus = document.getElementById('tsDenMinus');
+const tsDenPlus = document.getElementById('tsDenPlus');
+const tsNumText = document.getElementById('tsNumText');
+const tsDenText = document.getElementById('tsDenText');
+const tsPresetsGrid = document.getElementById('tsPresetsGrid');
+
+const syncModal = document.getElementById('syncModal');
+const syncCancel = document.getElementById('syncCancel');
+const syncConfirm = document.getElementById('syncConfirm');
+const syncBoxTrack = document.getElementById('syncBoxTrack');
+const chkAll = document.getElementById('chkAll');
+const chkSingle = document.getElementById('chkSingle');
+const syncNotesGrid = document.getElementById('syncNotesGrid');
+const btnGoCustom = document.getElementById('btnGoCustom');
+
+const soundModal = document.getElementById('soundModal');
+const soundCancel = document.getElementById('soundCancel');
+const soundConfirm = document.getElementById('soundConfirm');
+const soundPresetsGrid = document.getElementById('soundPresetsGrid');
+const btnSound = document.getElementById('btnSound');
+const soundSubText = document.getElementById('soundSubText');
+
+// 训练相关 DOM 元素
+const btnTrain = document.getElementById('btnTrain');
+const trainModal = document.getElementById('trainModal');
+const trainCancel = document.getElementById('trainCancel');
+const trainStart = document.getElementById('trainStart');
+const tabTempo = document.getElementById('tabTempo');
+const tabInterval = document.getElementById('tabInterval');
+const panelTempo = document.getElementById('panelTempo');
+const panelInterval = document.getElementById('panelInterval');
+
+let selectedBeatIndex = 0;
+let tempMatrixData = [];
+
+let tempTsNum = 4;
+let tempTsDen = 4;
+let pendingPreset = SoundSystem.currentPreset;
+
+// 训练全局状态
+let isTrainingRunning = false;
+let trainType = 'tempo';
+let trainConfig = null;
+let trainTimerInterval = null;
+let trainBarCounter = 0;
+let trainTotalElapsed = 0;
+let trainCurrentStepIndex = 0;
+let trainSteps = [];
+let trainTotalDuration = 0;
+let trainBarsPerStep = 0;
+let trainSecondsPerStep = 0;
+let trainUseBarUnit = true;
+
+function getTempoName(bpm) {
+    if (bpm < 40) return "Grave";
+    if (bpm < 60) return "Largo";
+    if (bpm < 66) return "Larghetto";
+    if (bpm < 76) return "Adagio";
+    if (bpm < 108) return "Andante";
+    if (bpm < 120) return "Moderato";
+    if (bpm < 129) return "Allegretto";
+    if (bpm < 156) return "Allegro";
+    if (bpm < 176) return "Vivace";
+    if (bpm < 200) return "Presto";
+    return "Prestissimo";
+}
+
+function updateBpm(val) {
+    currentBpm = Math.min(MAX_BPM, Math.max(MIN_BPM, val));
+    bpmNumberEl.textContent = currentBpm;
+    tempoNameEl.textContent = getTempoName(currentBpm);
+    if (runningBpm) {
+        runningBpm.textContent = currentBpm;
+    }
+}
+
+function getNotePrefix() {
+    return timeSigDen === 8 ? 'e_' : 'q_';
+}
+
+function getBeatRhythmKey(beatArray) {
+    const pattern = beatArray.map(st => st === 'slnt' ? 'X' : 'O').join('');
+    const code = PRESET_RHYTHMS[pattern];
+    if (!code) return 'none';
+    return getNotePrefix() + code;
+}
+
+function rhythmKeyToBeatArray(key, isFirstBeat) {
+    if (!key || key === 'none') return ['zero'];
+    const numStr = key.split('_')[1];
+    let pattern = "";
+    for (let p in PRESET_RHYTHMS) {
+        if (PRESET_RHYTHMS[p] === numStr) {
+            pattern = p;
+            break;
+        }
+    }
+    if (!pattern) return ['zero'];
+    return pattern.split('').map((char, idx) => {
+        if (char === 'X') return 'slnt';
+        if (idx === 0) {
+            return isFirstBeat ? 'full' : 'zero';
+        }
+        return 'zero';
+    });
+}
+
+function renderMatrix() {
+    matrixWrapper.innerHTML = '';
+    const colCount = matrixData.length;
+    matrixWrapper.style.transform = 'none';
+
+    const btnRemoveCol = document.createElement('div');
+    const isRemoveColHidden = !isEditMode || colCount <= 1;
+    btnRemoveCol.className = `col-side-btn ctrl-btn ${isRemoveColHidden ? 'hidden' : ''}`;
+    btnRemoveCol.textContent = '-';
+    btnRemoveCol.onclick = () => {
+        if (isEditMode && matrixData.length > 1) {
+            matrixData.pop();
+            timeSigNum = matrixData.length;
+            renderMatrix();
+        }
+    };
+    matrixWrapper.appendChild(btnRemoveCol);
+
+    matrixData.forEach((colData, colIdx) => {
+        const colEl = document.createElement('div');
+        colEl.className = 'matrix-col';
+
+        const minusBtn = document.createElement('div');
+        const isMinusHidden = !isEditMode || colData.length <= 1;
+        minusBtn.className = `ctrl-btn ${isMinusHidden ? 'hidden' : ''}`;
+        minusBtn.textContent = '-';
+        minusBtn.onclick = () => {
+            if (isEditMode) removeBeatFromCol(colIdx);
+        };
+        colEl.appendChild(minusBtn);
+
+        colData.forEach((state, rowIdx) => {
+            const node = document.createElement('div');
+            node.className = 'beat-node';
+            node.dataset.col = colIdx;
+            node.dataset.row = rowIdx;
+            const color = state === 'slnt' ? '#BBB' : '#222';
+            const pathKey = state === 'slnt' ? 'zero' : state;
+            node.innerHTML = `
+                <svg viewBox="0 0 24 24">
+                    <path d="${PATHS[pathKey]}" fill="${color}" />
+                </svg>
+            `;
+            node.onclick = () => {
+                const curIdx = BEAT_STATES.indexOf(state);
+                matrixData[colIdx][rowIdx] = BEAT_STATES[(curIdx + 1) % BEAT_STATES.length];
+                renderMatrix();
+            };
+            colEl.appendChild(node);
+        });
+
+        const plusBtn = document.createElement('div');
+        const isPlusHidden = !isEditMode || colData.length >= 6;
+        plusBtn.className = `ctrl-btn ${isPlusHidden ? 'hidden' : ''}`;
+        plusBtn.textContent = '+';
+        plusBtn.onclick = () => {
+            if (isEditMode) addBeatToCol(colIdx);
+        };
+        colEl.appendChild(plusBtn);
+        matrixWrapper.appendChild(colEl);
+    });
+
+    const btnAddCol = document.createElement('div');
+    const isAddColHidden = !isEditMode || colCount >= MAX_COL;
+    btnAddCol.className = `col-side-btn ctrl-btn ${isAddColHidden ? 'hidden' : ''}`;
+    btnAddCol.textContent = '+';
+    btnAddCol.onclick = () => {
+        if (isEditMode && matrixData.length < MAX_COL) {
+            matrixData.push(['zero']);
+            timeSigNum = matrixData.length;
+            renderMatrix();
+        }
+    };
+    matrixWrapper.appendChild(btnAddCol);
+
+    flatBeatList = [];
+    matrixData.forEach((col, c) => {
+        const durationRatio = 1 / col.length;
+        col.forEach((state, r) => {
+            flatBeatList.push({
+                col: c,
+                row: r,
+                state: state,
+                durationRatio: durationRatio
+            });
+        });
+    });
+
+    const sigText = `${colCount}/${timeSigDen}`;
+    timeSigSub.textContent = sigText;
+    if (runningTimeSig) {
+        runningTimeSig.textContent = sigText;
+    }
+}
+
+function addBeatToCol(colIdx) {
+    if (matrixData[colIdx].length < 6) {
+        matrixData[colIdx].push('zero');
+        renderMatrix();
+    }
+}
+
+function removeBeatFromCol(colIdx) {
+    if (matrixData[colIdx].length > 1) {
+        matrixData[colIdx].pop();
+        renderMatrix();
+    }
+}
+
+function enterEditMode() {
+    if (isCountdownRunning || isTrainingRunning) return;
+    isEditMode = true;
+    editControls.classList.add('active');
+    tempoSection.classList.add('hidden');
+    divider.classList.add('hidden');
+    mainMenu.classList.add('hidden');
+    renderMatrix();
+}
+
+function exitEditMode() {
+    isEditMode = false;
+    editControls.classList.remove('active');
+    tempoSection.classList.remove('hidden');
+    divider.classList.remove('hidden');
+    mainMenu.classList.remove('hidden');
+    renderMatrix();
+}
+
+btnExitEdit.onclick = exitEditMode;
+
+// ==================== 切分预设 Modal 渲染函数 ====================
+function getCurrentSvgColor() {
+    return document.body.classList.contains('night-mode') ? '#ffffff' : '#222222';
+}
+
+function openSyncModal() {
+    if (isCountdownRunning || isTrainingRunning) return;
+    tempMatrixData = JSON.parse(JSON.stringify(matrixData));
+    selectedBeatIndex = 0;
+    chkAll.checked = true;
+    chkSingle.checked = false;
+    renderSyncBoxes();
+    renderSyncNotes();
+    syncModal.classList.add('active');
+}
+
+function closeSyncModal() {
+    syncModal.classList.remove('active');
+}
+
+chkAll.addEventListener('change', () => {
+    if (chkAll.checked) chkSingle.checked = false;
+    else chkSingle.checked = true;
+});
+
+chkSingle.addEventListener('change', () => {
+    if (chkSingle.checked) chkAll.checked = false;
+    else chkAll.checked = true;
+});
+
+function renderSyncBoxes() {
+    syncBoxTrack.innerHTML = '';
+    const color = getCurrentSvgColor();
+    tempMatrixData.forEach((beat, idx) => {
+        const box = document.createElement('div');
+        box.className = 'sync-beat-box' + (idx === selectedBeatIndex ? ' selected' : '');
+        const rhythmKey = getBeatRhythmKey(beat);
+        box.innerHTML = getNoteSvgHtml(rhythmKey, color);
+        box.onclick = () => {
+            selectedBeatIndex = idx;
+            renderSyncBoxes();
+        };
+        syncBoxTrack.appendChild(box);
+    });
+}
+
+function renderSyncNotes() {
+    syncNotesGrid.innerHTML = '';
+    const prefix = getNotePrefix();
+    const color = getCurrentSvgColor();
+    for (let i = 1; i <= 16; i++) {
+        const key = prefix + (i < 10 ? '0' : '') + i;
+        const item = document.createElement('div');
+        item.className = 'sync-note-item';
+        item.innerHTML = getNoteSvgHtml(key, color);
+        item.onclick = () => applyNoteToSync(key);
+        syncNotesGrid.appendChild(item);
+    }
+}
+
+const nightModeObserver = new MutationObserver(() => {
+    if (syncModal.classList.contains('active')) {
+        const color = getCurrentSvgColor();
+        syncBoxTrack.querySelectorAll('svg path').forEach(p => p.setAttribute('fill', color));
+        syncNotesGrid.querySelectorAll('svg path').forEach(p => p.setAttribute('fill', color));
+    }
+});
+nightModeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+function applyNoteToSync(key) {
+    if (chkAll.checked) {
+        tempMatrixData = tempMatrixData.map((_, idx) => rhythmKeyToBeatArray(key, idx === 0));
+    } else {
+        tempMatrixData[selectedBeatIndex] = rhythmKeyToBeatArray(key, selectedBeatIndex === 0);
+    }
+    renderSyncBoxes();
+}
+
+syncConfirm.onclick = () => {
+    matrixData = JSON.parse(JSON.stringify(tempMatrixData));
+    renderMatrix();
+    closeSyncModal();
+};
+
+syncCancel.onclick = closeSyncModal;
+btnSyncopation.onclick = openSyncModal;
+
+btnGoCustom.onclick = () => {
+    matrixData = JSON.parse(JSON.stringify(tempMatrixData));
+    closeSyncModal();
+    enterEditMode();
+};
+
+function stateToAccentType(state) {
+    switch (state) {
+        case 'full':
+            return 'strong';
+        case 'half':
+            return 'sub';
+        case 'zero':
+            return 'weak';
+        case 'slnt':
+            return 'zero';
+        default:
+            return 'weak';
+    }
+}
+
+function triggerBeatPulse(col, row) {
+    const targetNode = document.querySelector(`.beat-node[data-col="${col}"][data-row="${row}"]`);
+    if (!targetNode) return;
+    targetNode.classList.remove('pulse');
+    void targetNode.offsetWidth;
+    targetNode.classList.add('pulse');
+    setTimeout(() => targetNode.classList.remove('pulse'), 100);
+}
+
+function scheduler() {
+    const ctx = SoundSystem.audioCtx;
+    if (!ctx) return;
+    while (nextNoteTime < ctx.currentTime + 0.1) {
+        if (flatBeatList.length > 0) {
+            const currentItem = flatBeatList[currentFlatIndex];
+            const accentType = stateToAccentType(currentItem.state);
+            SoundSystem.trigger(currentItem.col, timeSigNum, accentType, currentItem.row);
+            const timeDiff = Math.max(0, (nextNoteTime - ctx.currentTime) * 1000);
+            setTimeout(() => {
+                if (isPlaying) {
+                    triggerBeatPulse(currentItem.col, currentItem.row);
+                    if (
+                         isTrainingRunning &&
+                         currentItem.col === timeSigNum - 1 &&
+                         currentItem.row === flatBeatList.filter(
+                             x => x.col === timeSigNum - 1
+                         ).length - 1
+                     ) {
+                         onBarComplete();
+                     }
+                }
+            }, timeDiff);
+            const baseBeatTime = (60 / currentBpm) * (4 / timeSigDen);
+            nextNoteTime += baseBeatTime * currentItem.durationRatio;
+            currentFlatIndex = (currentFlatIndex + 1) % flatBeatList.length;
+        }
+    }
+}
+
+function onBarComplete() {
+    if (!isTrainingRunning) return;
+    trainBarCounter++;
+
+    // 间歇训练：用小节计数控制全局音量
+    if (trainType === 'interval' && trainConfig) {
+        let shouldMute = false;
+        if (trainConfig.mode === 'fixed') {
+            const playBars = trainConfig.fixedPlayBars || 1;
+            const muteBars = trainConfig.fixedMuteBars || 1;
+            const cycleBars = playBars + muteBars;
+            const posInCycle = (trainBarCounter) % cycleBars;
+            shouldMute = posInCycle >= playBars;
+        } else if (trainConfig.mode === 'random') {
+            const muteProbability = (trainConfig.randomProb || 0) / 100;
+            shouldMute = Math.random() < muteProbability;
+        }
+        SoundSystem.setMasterVolume(shouldMute ? 0 : 1);
+        trainRunStatus.textContent = shouldMute ? '静音中...' : '播放中...';
+    }
+
+    if (trainType === 'tempo') {
+        handleTempoBarTick();
+    }
+}
+
+function handleTempoBarTick() {
+    if (!trainConfig) return;
+    if (trainConfig.mode === 'even') {
+        if (trainUseBarUnit) {
+            if (trainBarCounter >= trainBarsPerStep) {
+                trainBarCounter = 0;
+                advanceTempoStep();
+            }
+        }
+        updateTrainTempoUI();
+    } else if (trainConfig.mode === 'custom') {
+        if (trainUseBarUnit) {
+            if (trainBarCounter >= trainBarsPerStep) {
+                trainBarCounter = 0;
+                advanceTempoStep();
+            }
+        }
+        updateTrainTempoUI();
+    }
+}
+
+function advanceTempoStep() {
+    trainCurrentStepIndex++;
+    if (trainCurrentStepIndex >= trainSteps.length) {
+        stopTraining();
+        return;
+    }
+    const step = trainSteps[trainCurrentStepIndex];
+    updateBpm(step.bpm);
+    trainBarsPerStep = step.bars || 0;
+    trainSecondsPerStep = step.seconds || 0;
+    trainBarCounter = 0;
+    updateTrainTempoUI();
+}
+
+function updateTrainTempoUI() {
+    if (!trainConfig || trainType !== 'tempo') return;
+    const remainingSteps = trainSteps.length - trainCurrentStepIndex - 1;
+    const barsRemaining = trainUseBarUnit ? Math.max(0, trainBarsPerStep - trainBarCounter) : 0;
+    trainBarCount.textContent = trainUseBarUnit ? barsRemaining : '--';
+    if (trainUseBarUnit && trainBarsPerStep > 0) {
+        trainBarCount.textContent = trainBarsPerStep - trainBarCounter;
+    } else {
+        trainBarCount.textContent = '--';
+    }
+    const totalRemainingSec = Math.max(0, trainTotalDuration - trainTotalElapsed);
+    const m = String(Math.floor(totalRemainingSec / 60)).padStart(2, '0');
+    const s = String(Math.floor(totalRemainingSec % 60)).padStart(2, '0');
+    trainTimeLeft.textContent = `${m}:${s}`;
+    updateTempoBarChart(currentBpm);
+}
+
+function updateTempoBarChart(bpm) {
+    const bars = tempoBarChart.querySelectorAll('.bar-box');
+    const labels = tempoBarChart.querySelectorAll('.bar-num');
+    bars.forEach((bar, i) => {
+        bar.classList.remove('active');
+        const labelBpm = parseInt(labels[i].textContent, 10);
+        if (!isNaN(labelBpm) && bpm >= labelBpm && (i === bars.length - 1 || bpm < parseInt(labels[i + 1].textContent, 10))) {
+            bar.classList.add('active');
+        }
+        if (i === bars.length - 1 && bpm >= parseInt(labels[i].textContent, 10)) {
+            bar.classList.add('active');
+        }
+    });
+}
+
+function updateIntervalUI() {
+    trainRunStatus.textContent = SoundSystem.globalMute ? '静音中...' : '播放中...';
+}
+
+function startTraining() {
+    if (isCountdownRunning || isTrainingRunning) return;
+
+    const config = collectTrainConfig();
+    if (!config) return;
+    trainConfig = config;
+    trainType = config.type;
+    trainBarCounter = 0;
+    trainTotalElapsed = 0;
+    trainCurrentStepIndex = 0;
+
+    if (config.type === 'tempo') {
+        trainSteps = config.steps;
+        trainTotalDuration = config.totalDuration;
+        trainUseBarUnit = config.useBarUnit;
+        if (trainSteps.length > 0) {
+            updateBpm(trainSteps[0].bpm);
+            trainBarsPerStep = trainSteps[0].bars || 0;
+            trainSecondsPerStep = trainSteps[0].seconds || 0;
+        }
+        trainRunStatus.textContent = '变速计划进行中...';
+        tempoBarChart.style.display = 'flex';
+        trainRunStats.style.display = 'flex';
+        updateTrainTempoUI();
+    } else if (config.type === 'interval') {
+        trainRunStatus.textContent = '间歇静音训练...';
+        tempoBarChart.style.display = 'none';
+        trainRunStats.style.display = 'none';
+        SoundSystem.globalMute = false;
+    }
+
+    trainModal.classList.remove('active');
+    isTrainingRunning = true;
+    hideSetupUI();
+    runningDashboard.classList.add('active');
+    countdownContainer.style.display = 'none';
+    trainRunContainer.classList.add('active');
+    trainRunStopBtn.style.display = 'block';
+    runningTimeSig.textContent = timeSigSub.textContent;
+    runningBpm.textContent = currentBpm;
+    startMetronomeAudio();
+
+    trainTimerInterval = setInterval(() => {
+        trainTotalElapsed++;
+        if (trainConfig && trainConfig.type === 'tempo') {
+            if (!trainUseBarUnit && trainSecondsPerStep > 0 && trainTotalElapsed >= trainSecondsPerStep) {
+                trainTotalElapsed = 0;
+                advanceTempoStep();
+            }
+            if (trainTotalElapsed >= trainTotalDuration && trainTotalDuration > 0) {
+                stopTraining();
+                return;
+            }
+            updateTrainTempoUI();
+        }
+    }, 1000);
+}
+
+function stopTraining() {
+    isTrainingRunning = false;
+    SoundSystem.setMasterVolume(1);  // 恢复音量，避免静音残留
+    SoundSystem.globalMute = false;
+    if (trainTimerInterval) clearInterval(trainTimerInterval);  // 修复变量名
+    trainTimerInterval = null;
+    trainConfig = null;
+    trainSteps = [];
+    stopMetronomeAudio();
+    runningDashboard.classList.remove('active');
+    countdownContainer.style.display = '';
+    trainRunContainer.classList.remove('active');
+    trainRunStopBtn.style.display = 'none';
+    tempoBarChart.style.display = 'none';
+    trainRunStats.style.display = 'none';
+    showSetupUI();
+    updateBpm(currentBpm);
+}
+
+function hideSetupUI() {
+    matrixStage.style.display = 'none';
+    editControls.classList.remove('active');
+    tempoSection.classList.add('hidden');
+    divider.classList.add('hidden');
+    mainMenu.classList.add('hidden');
+    setupControls.style.display = 'none';
+    runningControls.classList.remove('active');
+}
+
+function showSetupUI() {
+    matrixStage.style.display = '';
+    tempoSection.classList.remove('hidden');
+    divider.classList.remove('hidden');
+    mainMenu.classList.remove('hidden');
+    setupControls.style.display = 'flex';
+    runningControls.classList.remove('active');
+    runningDashboard.classList.remove('active');
+    countdownContainer.style.display = '';
+    trainRunContainer.classList.remove('active');
+}
+
+function collectTrainConfig() {
+    const type = trainType;
+    if (type === 'tempo') {
+        const modeRadio = document.querySelector('input[name="tempoMode"]:checked');
+        const mode = modeRadio ? modeRadio.value : 'even';
+        if (mode === 'even') {
+            const fromBpm = parseInt(document.getElementById('evenFrom').value, 10);
+            const toBpm = parseInt(document.getElementById('evenTo').value, 10);
+            const stepInterval = parseInt(document.getElementById('evenStepInterval').value, 10);
+            const stepBpm = parseInt(document.getElementById('evenStepBpm').value, 10);
+            const unitRadio = document.querySelector('input[name="evenUnit"]:checked');
+            const unit = unitRadio ? unitRadio.value : 'bar';
+            if (isNaN(fromBpm) || isNaN(toBpm) || isNaN(stepInterval) || isNaN(stepBpm)) return null;
+            if (stepBpm <= 0 || stepInterval <= 0) return null;
+            const useBarUnit = unit === 'bar';
+            const steps = [];
+            let bpm = fromBpm;
+            const direction = toBpm >= fromBpm ? 1 : -1;
+            while ((direction > 0 && bpm <= toBpm) || (direction < 0 && bpm >= toBpm)) {
+                steps.push({
+                    bpm: Math.min(MAX_BPM, Math.max(MIN_BPM, bpm)),
+                    bars: useBarUnit ? stepInterval : 0,
+                    seconds: useBarUnit ? 0 : stepInterval * 60
+                });
+                bpm += stepBpm * direction;
+            }
+            const totalDuration = useBarUnit ? 0 : steps.reduce((sum, s) => sum + s.seconds, 0);
+            return {
+                type: 'tempo',
+                mode: 'even',
+                useBarUnit,
+                steps,
+                totalDuration
+            };
+        } else if (mode === 'custom') {
+            const customRows = document.querySelectorAll('#customTempoList .custom-tempo-row');
+            const steps = [];
+            customRows.forEach(row => {
+                const bpmValEl = row.querySelector('.bpm-val');
+                const intervalInput = row.querySelector('.custom-interval-input');
+                if (bpmValEl && intervalInput) {
+                    const bpm = parseInt(bpmValEl.textContent, 10);
+                    const interval = parseInt(intervalInput.value, 10);
+                    if (!isNaN(bpm) && !isNaN(interval) && interval > 0) {
+                        const unitRadio = document.querySelector('input[name="customUnit"]:checked');
+                        const unit = unitRadio ? unitRadio.value : 'min';
+                        const useBarUnit = unit === 'bar';
+                        steps.push({
+                            bpm: Math.min(MAX_BPM, Math.max(MIN_BPM, bpm)),
+                            bars: useBarUnit ? interval : 0,
+                            seconds: useBarUnit ? 0 : interval * 60
+                        });
+                    }
+                }
+            });
+            const targetBpm = parseInt(document.getElementById('customTargetBpm').value, 10);
+            const targetInterval = parseInt(document.getElementById('customTargetInterval').value, 10);
+            if (!isNaN(targetBpm) && !isNaN(targetInterval) && targetInterval > 0) {
+                const unitRadio = document.querySelector('input[name="customUnit"]:checked');
+                const unit = unitRadio ? unitRadio.value : 'min';
+                const useBarUnit = unit === 'bar';
+                steps.push({
+                    bpm: Math.min(MAX_BPM, Math.max(MIN_BPM, targetBpm)),
+                    bars: useBarUnit ? targetInterval : 0,
+                    seconds: useBarUnit ? 0 : targetInterval * 60
+                });
+            }
+            if (steps.length === 0) return null;
+            const useBarUnit = (document.querySelector('input[name="customUnit"]:checked')?.value || 'min') === 'bar';
+            const totalDuration = useBarUnit ? 0 : steps.reduce((sum, s) => sum + s.seconds, 0);
+            return {
+                type: 'tempo',
+                mode: 'custom',
+                useBarUnit,
+                steps,
+                totalDuration
+            };
+        }
+    } else if (type === 'interval') {
+        const modeRadio = document.querySelector('input[name="intervalMode"]:checked');
+        const mode = modeRadio ? modeRadio.value : 'fixed';
+        if (mode === 'fixed') {
+            const playVal = parseInt(document.getElementById('fixedPlayVal').textContent, 10);
+            const muteVal = parseInt(document.getElementById('fixedMuteVal').textContent, 10);
+            if (isNaN(playVal) || isNaN(muteVal) || playVal < 1 || muteVal < 1) return null;
+            return { type: 'interval', mode: 'fixed', fixedPlayBars: playVal, fixedMuteBars: muteVal };
+        } else if (mode === 'random') {
+            const prob = parseInt(document.getElementById('muteRange').value, 10);
+            return { type: 'interval', mode: 'random', randomProb: prob };
+        }
+    }
+    return null;
+}
+
+function renderPlayBtn() {
+    playBtn.innerHTML = `
+        <svg viewBox="0 0 24 24">
+            <path d="${PATHS[isPlaying ? 'stop' : 'play']}" fill="#222" />
+        </svg>
+    `;
+}
+renderPlayBtn();
+
+playBtn.onclick = () => {
+    if (isCountdownRunning || isTrainingRunning) return;
+    isPlaying = !isPlaying;
+    renderPlayBtn();
+    if (isPlaying) {
+        SoundSystem.initAudioContext();
+        audioCtx = SoundSystem.audioCtx;
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        currentFlatIndex = 0;
+        nextNoteTime = audioCtx.currentTime;
+        timerWorker = setInterval(scheduler, 25);
+    } else {
+        clearInterval(timerWorker);
+        document.querySelectorAll('.beat-node').forEach(el => el.classList.remove('pulse'));
+    }
+};
+
+function startMetronomeAudio() {
+    if (timerWorker) clearInterval(timerWorker);
+    SoundSystem.initAudioContext();
+    audioCtx = SoundSystem.audioCtx;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    isPlaying = true;
+    currentFlatIndex = 0;
+    nextNoteTime = audioCtx.currentTime;
+    timerWorker = setInterval(scheduler, 25);
+    renderPlayBtn();
+}
+
+function stopMetronomeAudio() {
+    if (timerWorker) clearInterval(timerWorker);
+    isPlaying = false;
+    document.querySelectorAll('.beat-node').forEach(el => el.classList.remove('pulse'));
+    renderPlayBtn();
+}
+
+function pauseMetronomeAudio() {
+    if (timerWorker) clearInterval(timerWorker);
+    document.querySelectorAll('.beat-node').forEach(el => el.classList.remove('pulse'));
+}
+
+function resumeMetronomeAudio() {
+    SoundSystem.initAudioContext();
+    audioCtx = SoundSystem.audioCtx;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    nextNoteTime = audioCtx.currentTime;
+    timerWorker = setInterval(scheduler, 25);
+}
+
+const setupElements = [
+    editControls,
+    tempoSection,
+    divider,
+    mainMenu
+];
+
+function enterRunningState() {
+    if (isTrainingRunning) return;
+    isCountdownRunning = true;
+    isCountdownPaused = false;
+    setupElements.forEach(el => {
+        if (el) el.style.display = 'none';
+    });
+    editControls.classList.remove('active');
+    tempoSection.classList.add('hidden');
+    divider.classList.add('hidden');
+    mainMenu.classList.add('hidden');
+    runningDashboard.classList.add('active');
+    countdownContainer.style.display = '';
+    trainRunContainer.classList.remove('active');
+    runningTimeSig.textContent = timeSigSub.textContent;
+    runningBpm.textContent = currentBpm;
+    countdownHint.textContent = '倒计时中…';
+    setupControls.style.display = 'none';
+    runningControls.classList.add('active');
+    pauseContinueBtn.textContent = '暂停';
+    updateCountdownText();
+}
+
+function exitRunningState() {
+    isCountdownRunning = false;
+    isCountdownPaused = false;
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
+    stopMetronomeAudio();
+    setupElements.forEach(el => {
+        if (el) el.style.display = '';
+    });
+    tempoSection.classList.remove('hidden');
+    divider.classList.remove('hidden');
+    mainMenu.classList.remove('hidden');
+    if (isEditMode) {
+        editControls.classList.add('active');
+    }
+    runningDashboard.classList.remove('active');
+    countdownContainer.style.display = '';
+    trainRunContainer.classList.remove('active');
+    setupControls.style.display = 'flex';
+    runningControls.classList.remove('active');
+}
+
+function updateCountdownText() {
+    const m = String(Math.floor(remainingSeconds / 60)).padStart(2, '0');
+    const s = String(remainingSeconds % 60).padStart(2, '0');
+    countdownTime.textContent = `${m}:${s}`;
+}
+
+function startCountdownTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    updateCountdownText();
+    timerInterval = setInterval(() => {
+        if (!isCountdownPaused) {
+            remainingSeconds--;
+            if (remainingSeconds <= 0) {
+                remainingSeconds = 0;
+                updateCountdownText();
+                countdownHint.textContent = '倒计时停止...';
+                clearInterval(timerInterval);
+                timerInterval = null;
+                stopMetronomeAudio();
+                setTimeout(() => {
+                    if (isCountdownRunning && remainingSeconds <= 0) {
+                        exitRunningState();
+                    }
+                }, 3000);
+            } else {
+                updateCountdownText();
+            }
+        }
+    }, 1000);
+}
+
+// ==================== 拍号 Modal 交互逻辑 ====================
+function updateTsDisplay() {
+    tsNumText.textContent = tempTsNum;
+    tsDenText.textContent = tempTsDen;
+}
+
+function openTimeSigModal() {
+    if (isCountdownRunning || isTrainingRunning) return;
+    tempTsNum = timeSigNum;
+    tempTsDen = timeSigDen;
+    updateTsDisplay();
+    timeSigModal.classList.add('active');
+}
+
+function closeTimeSigModal() {
+    timeSigModal.classList.remove('active');
+}
+
+tsNumMinus.onclick = () => {
+    if (tempTsNum > 1) { tempTsNum--; updateTsDisplay(); }
+};
+tsNumPlus.onclick = () => {
+    if (tempTsNum < 16) { tempTsNum++; updateTsDisplay(); }
+};
+tsDenMinus.onclick = () => {
+    if (tempTsDen === 8) { tempTsDen = 4; updateTsDisplay(); }
+};
+tsDenPlus.onclick = () => {
+    if (tempTsDen === 4) { tempTsDen = 8; updateTsDisplay(); }
+};
+
+tsPresetsGrid.addEventListener('click', (e) => {
+    const item = e.target.closest('.ts-preset-item');
+    if (!item) return;
+    tempTsNum = parseInt(item.getAttribute('data-num'), 10);
+    tempTsDen = parseInt(item.getAttribute('data-den'), 10);
+    updateTsDisplay();
+});
+
+tsConfirm.onclick = () => {
+    timeSigNum = tempTsNum;
+    timeSigDen = tempTsDen;
+    matrixData = [];
+    for (let i = 0; i < timeSigNum; i++) {
+        let beatType = 'zero';
+        if (i === 0) {
+            beatType = 'full';
+        } else if (timeSigDen === 8) {
+            if ([6, 9, 12].includes(timeSigNum) && [3, 6, 9].includes(i)) {
+                beatType = 'half';
+            }
+        }
+        matrixData.push([beatType]);
+    }
+    renderMatrix();
+    closeTimeSigModal();
+};
+
+tsCancel.onclick = closeTimeSigModal;
+btnTimeSig.onclick = openTimeSigModal;
+timeSigModal.addEventListener('click', (e) => {
+    if (e.target === timeSigModal) closeTimeSigModal();
+});
+
+// ==================== BPM Modal 逻辑 ====================
+function openModal() {
+    if (isCountdownRunning || isTrainingRunning) return;
+    tempBpmStr = "";
+    tapTimestamps = [];
+    modalDisplay.textContent = "-";
+    modalOverlay.classList.add('active');
+}
+
+function closeModal() {
+    modalOverlay.classList.remove('active');
+}
+
+function confirmModal() {
+    if (tempBpmStr !== "") {
+        let val = parseInt(tempBpmStr, 10);
+        if (!isNaN(val)) {
+            updateBpm(val);
+        }
+    }
+    closeModal();
+}
+
+function appendDigit(digit) {
+    if (tempBpmStr.length >= 3) return;
+    tempBpmStr += digit;
+    modalDisplay.textContent = tempBpmStr;
+}
+
+function deleteDigit() {
+    tempBpmStr = tempBpmStr.slice(0, -1);
+    modalDisplay.textContent = tempBpmStr === "" ? "-" : tempBpmStr;
+}
+
+function clearDigits() {
+    tempBpmStr = "";
+    modalDisplay.textContent = "-";
+}
+
+function handleTap() {
+    const now = Date.now();
+    if (tapTimestamps.length > 0 && (now - tapTimestamps[tapTimestamps.length - 1] > 2000)) {
+        tapTimestamps = [];
+    }
+    tapTimestamps.push(now);
+    if (tapTimestamps.length > 8) {
+        tapTimestamps.shift();
+    }
+    if (tapTimestamps.length > 1) {
+        const intervals = [];
+        for (let i = 1; i < tapTimestamps.length; i++) {
+            intervals.push(tapTimestamps[i] - tapTimestamps[i - 1]);
+        }
+        const avgInterval = intervals.reduce((sum, val) => sum + val, 0) / intervals.length;
+        let calculatedBpm = Math.round(60000 / avgInterval);
+        calculatedBpm = Math.min(MAX_BPM, Math.max(MIN_BPM, calculatedBpm));
+        tempBpmStr = calculatedBpm.toString();
+        modalDisplay.textContent = tempBpmStr;
+    }
+}
+
+bpmTrigger.addEventListener('click', openModal);
+modalCancel.addEventListener('click', closeModal);
+modalConfirm.addEventListener('click', confirmModal);
+tapBtnEl.addEventListener('click', handleTap);
+
+numKeys.forEach(btn => {
+    btn.addEventListener('click', () => appendDigit(btn.getAttribute('data-val')));
+});
+btnBackspace.addEventListener('click', deleteDigit);
+btnClear.addEventListener('click', clearDigits);
+
+function setupHoldButton(btn, stepAction) {
+    let timer = null;
+    let interval = null;
+    const start = (e) => {
+        if (isCountdownRunning || isTrainingRunning) return;
+        if (e.cancelable) e.preventDefault();
+        stepAction();
+        clearTimeout(timer);
+        clearInterval(interval);
+        timer = setTimeout(() => {
+            interval = setInterval(() => {
+                stepAction();
+            }, 60);
+        }, 300);
+    };
+    const stop = () => {
+        clearTimeout(timer);
+        clearInterval(interval);
+    };
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('mouseleave', stop);
+    btn.addEventListener('touchstart', start, { passive: false });
+    btn.addEventListener('touchend', stop);
+    btn.addEventListener('touchcancel', stop);
+}
+
+setupHoldButton(btnMinus, () => updateBpm(currentBpm - 1));
+setupHoldButton(btnPlus, () => updateBpm(currentBpm + 1));
+
+window.addEventListener('keydown', (e) => {
+    if (!modalOverlay.classList.contains('active')) return;
+    if (e.key >= '0' && e.key <= '9') {
+        appendDigit(e.key);
+    } else if (e.key === 'Backspace') {
+        deleteDigit();
+    } else if (e.key === 'Enter') {
+        confirmModal();
+    } else if (e.key === 'Escape') {
+        closeModal();
+    } else if (e.key === 'Tab') {
+        e.preventDefault();
+        handleTap();
+    }
+});
+
+document.querySelectorAll('.night-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.body.classList.toggle('night-mode');
+    });
+});
+
+// --- 定时器弹窗逻辑 ---
+const timerBtn = document.getElementById('timerBtn');
+const timerModal = document.getElementById('timerModal');
+const cancelTimer = document.getElementById('cancelTimer');
+const startTimer = document.getElementById('startTimer');
+const customMinutesInput = document.getElementById('customMinutes');
+const presetGrid = document.getElementById('presetGrid');
+
+timerBtn.addEventListener('click', () => {
+    if (isCountdownRunning || isTrainingRunning) return;
+    timerModal.classList.add('active');
+});
+
+cancelTimer.addEventListener('click', () => {
+    timerModal.classList.remove('active');
+});
+
+timerModal.addEventListener('click', (e) => {
+    if (e.target === timerModal) {
+        timerModal.classList.remove('active');
+    }
+});
+
+presetGrid.addEventListener('click', (e) => {
+    const presetItem = e.target.closest('.preset-item');
+    if (!presetItem) return;
+    const mins = parseInt(presetItem.getAttribute('data-mins'), 10);
+    if (!isNaN(mins) && mins > 0) {
+        customMinutesInput.value = mins;
+    }
+});
+
+startTimer.addEventListener('click', () => {
+    const mins = parseInt(customMinutesInput.value, 10);
+    if (isNaN(mins) || mins <= 0) return;
+    remainingSeconds = mins * 60;
+    timerModal.classList.remove('active');
+    if (isEditMode) {
+        exitEditMode();
+    }
+    enterRunningState();
+    startMetronomeAudio();
+    startCountdownTimer();
+});
+
+pauseContinueBtn.addEventListener('click', () => {
+    if (!isCountdownRunning) return;
+    isCountdownPaused = !isCountdownPaused;
+    if (isCountdownPaused) {
+        pauseContinueBtn.textContent = '继续';
+        countdownHint.textContent = '倒计时停止...';
+        pauseMetronomeAudio();
+    } else {
+        pauseContinueBtn.textContent = '暂停';
+        countdownHint.textContent = '倒计时中…';
+        resumeMetronomeAudio();
+    }
+});
+
+stopBtn.addEventListener('click', () => {
+    if (!isCountdownRunning) return;
+    remainingSeconds = 0;
+    updateCountdownText();
+    countdownHint.textContent = '倒计时停止...';
+    exitRunningState();
+});
+
+const syncBoxContainer = document.getElementById('syncBoxContainer');
+let isDown = false;
+let startX;
+let scrollLeft;
+
+syncBoxContainer.addEventListener('mousedown', (e) => {
+    isDown = true;
+    syncBoxContainer.style.cursor = 'grabbing';
+    startX = e.pageX - syncBoxContainer.offsetLeft;
+    scrollLeft = syncBoxContainer.scrollLeft;
+});
+
+syncBoxContainer.addEventListener('mouseleave', () => {
+    isDown = false;
+    syncBoxContainer.style.cursor = 'default';
+});
+
+syncBoxContainer.addEventListener('mouseup', () => {
+    isDown = false;
+    syncBoxContainer.style.cursor = 'default';
+});
+
+syncBoxContainer.addEventListener('mousemove', (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - syncBoxContainer.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    syncBoxContainer.scrollLeft = scrollLeft - walk;
+});
+
+// ==================== 音效弹窗交互逻辑 ====================
+function updateSoundSelectedUI(targetNum) {
+    const presetItems = soundPresetsGrid.querySelectorAll('.sound-preset-item');
+    presetItems.forEach(item => {
+        const num = parseInt(item.getAttribute('sound-num'), 10);
+        if (num === targetNum) {
+            item.style.backgroundColor = document.body.classList.contains('night-mode') ?
+                'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+            item.style.fontWeight = 'bold';
+        } else {
+            item.style.backgroundColor = '';
+            item.style.fontWeight = 'normal';
+        }
+    });
+}
+
+function openSoundModal() {
+    if (isCountdownRunning || isTrainingRunning) return;
+    pendingPreset = SoundSystem.currentPreset;
+    updateSoundSelectedUI(pendingPreset);
+    soundModal.classList.add('active');
+}
+
+function closeSoundModal() {
+    soundModal.classList.remove('active');
+}
+
+if (btnSound) {
+    btnSound.addEventListener('click', openSoundModal);
+}
+
+if (soundPresetsGrid) {
+    soundPresetsGrid.addEventListener('click', (e) => {
+        const item = e.target.closest('.sound-preset-item');
+        if (!item) return;
+        const soundNum = parseInt(item.getAttribute('sound-num'), 10);
+        pendingPreset = soundNum;
+        updateSoundSelectedUI(pendingPreset);
+        SoundSystem.preloadPreset(soundNum);
+        const prevPreset = SoundSystem.currentPreset;
+        SoundSystem.currentPreset = soundNum;
+        SoundSystem.trigger(0, 4, 'strong', 0);
+        SoundSystem.currentPreset = prevPreset;
+    });
+}
+
+if (soundCancel) {
+    soundCancel.addEventListener('click', closeSoundModal);
+}
+
+if (soundConfirm) {
+    soundConfirm.addEventListener('click', () => {
+        SoundSystem.currentPreset = pendingPreset;
+        const activeItem = soundPresetsGrid.querySelector(`.sound-preset-item[sound-num="${pendingPreset}"]`);
+        if (activeItem && soundSubText) {
+            soundSubText.textContent = activeItem.textContent.trim();
+        }
+        closeSoundModal();
+    });
+}
+
+soundModal.addEventListener('click', (e) => {
+    if (e.target === soundModal) closeSoundModal();
+});
+
+SoundSystem.preloadPreset(1);
+
+// ==================== 训练弹窗交互逻辑 ====================
+if (btnTrain) {
+    btnTrain.addEventListener('click', () => {
+        if (isCountdownRunning || isTrainingRunning) return;
+        trainModal.classList.add('active');
+        trainType = 'tempo';
+        tabTempo.classList.add('active');
+        tabInterval.classList.remove('active');
+        panelTempo.classList.add('active');
+        panelInterval.classList.remove('active');
+        document.getElementById('subEvenTempo').classList.add('active');
+        document.getElementById('subCustomTempo').classList.remove('active');
+        const evenRadio = document.querySelector('input[name="tempoMode"][value="even"]');
+        if (evenRadio) evenRadio.checked = true;
+        const fixedRadio = document.querySelector('input[name="intervalMode"][value="fixed"]');
+        if (fixedRadio) fixedRadio.checked = true;
+        document.getElementById('subFixedInterval').classList.add('active');
+        document.getElementById('subRandomInterval').classList.remove('active');
+    });
+}
+
+if (trainCancel) {
+    trainCancel.addEventListener('click', () => {
+        trainModal.classList.remove('active');
+    });
+}
+
+trainModal.addEventListener('click', (e) => {
+    if (e.target === trainModal) {
+        trainModal.classList.remove('active');
+    }
+});
+
+if (trainStart) {
+    trainStart.addEventListener('click', () => {
+        startTraining();
+    });
+}
+
+if (tabTempo) {
+    tabTempo.addEventListener('click', () => {
+        trainType = 'tempo';
+        tabTempo.classList.add('active');
+        tabInterval.classList.remove('active');
+        panelTempo.classList.add('active');
+        panelInterval.classList.remove('active');
+    });
+}
+
+if (tabInterval) {
+    tabInterval.addEventListener('click', () => {
+        trainType = 'interval';
+        tabInterval.classList.add('active');
+        tabTempo.classList.remove('active');
+        panelInterval.classList.add('active');
+        panelTempo.classList.remove('active');
+    });
+}
+
+document.querySelectorAll('input[name="tempoMode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        document.getElementById('subEvenTempo').classList.toggle('active', e.target.value === 'even');
+        document.getElementById('subCustomTempo').classList.toggle('active', e.target.value === 'custom');
+    });
+});
+
+document.querySelectorAll('input[name="intervalMode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        document.getElementById('subFixedInterval').classList.toggle('active', e.target.value === 'fixed');
+        document.getElementById('subRandomInterval').classList.toggle('active', e.target.value === 'random');
+    });
+});
+
+const muteRange = document.getElementById('muteRange');
+const muteVal = document.getElementById('muteVal');
+if (muteRange && muteVal) {
+    muteRange.addEventListener('input', () => {
+        muteVal.textContent = muteRange.value;
+    });
+}
+
+// 固定间歇步进器
+function setupFixedStepper(minusBtn, plusBtn, valEl, min) {
+    minusBtn.addEventListener('click', () => {
+        let v = parseInt(valEl.textContent, 10);
+        if (!isNaN(v) && v > min) {
+            valEl.textContent = v - 1;
+        }
+    });
+    plusBtn.addEventListener('click', () => {
+        let v = parseInt(valEl.textContent, 10);
+        if (!isNaN(v) && v < 99) {
+            valEl.textContent = v + 1;
+        }
+    });
+}
+
+const fixedPlayMinus = document.getElementById('fixedPlayMinus');
+const fixedPlayPlus = document.getElementById('fixedPlayPlus');
+const fixedPlayVal = document.getElementById('fixedPlayVal');
+const fixedMuteMinus = document.getElementById('fixedMuteMinus');
+const fixedMutePlus = document.getElementById('fixedMutePlus');
+const fixedMuteVal = document.getElementById('fixedMuteVal');
+
+if (fixedPlayMinus && fixedPlayPlus && fixedPlayVal) {
+    setupFixedStepper(fixedPlayMinus, fixedPlayPlus, fixedPlayVal, 1);
+}
+if (fixedMuteMinus && fixedMutePlus && fixedMuteVal) {
+    setupFixedStepper(fixedMuteMinus, fixedMutePlus, fixedMuteVal, 1);
+}
+
+// 自定义变速 - 基准 BPM（用于倍速计算，可调整）
+const BASE_BPM_FOR_RATE = 100;
+
+function bindCustomRowEvents(row) {
+    const rateMinus = row.querySelector('.custom-rate-minus');
+    const ratePlus = row.querySelector('.custom-rate-plus');
+    const rateVal = row.querySelector('.rate-val');
+    const bpmVal = row.querySelector('.bpm-val');
+    const intvMinus = row.querySelector('.custom-intv-minus');
+    const intvPlus = row.querySelector('.custom-intv-plus');
+    const intervalInput = row.querySelector('.custom-interval-input');
+
+    // 更新 BPM 显示值 = 当前倍速 * BASE_BPM_FOR_RATE（取整）
+    function updateBpmFromRate() {
+        const rate = parseFloat(rateVal.textContent);
+        if (!isNaN(rate)) {
+            bpmVal.textContent = Math.round(rate * BASE_BPM_FOR_RATE);
+        }
+    }
+
+    // 倍速减
+    rateMinus.addEventListener('click', () => {
+        let v = parseFloat(rateVal.textContent);
+        if (!isNaN(v) && v > 0.1) {
+            rateVal.textContent = (Math.round((v - 0.1) * 10) / 10).toFixed(1);
+            updateBpmFromRate();
+        }
+    });
+    // 倍速加
+    ratePlus.addEventListener('click', () => {
+        let v = parseFloat(rateVal.textContent);
+        if (!isNaN(v) && v < 5.0) {
+            rateVal.textContent = (Math.round((v + 0.1) * 10) / 10).toFixed(1);
+            updateBpmFromRate();
+        }
+    });
+
+    // 间隔输入框增减（第三列按钮）
+    intvMinus.addEventListener('click', () => {
+        let val = parseInt(intervalInput.value, 10);
+        if (!isNaN(val) && val > 1) {
+            intervalInput.value = val - 1;
+        }
+    });
+    intvPlus.addEventListener('click', () => {
+        let val = parseInt(intervalInput.value, 10);
+        if (!isNaN(val) && val < 999) {
+            intervalInput.value = val + 1;
+        }
+    });
+
+    // 初始计算一次
+    updateBpmFromRate();
+}
+
+// 为已有行绑定事件（需要替换 HTML 后调用）
+document.querySelectorAll('#customTempoList .custom-tempo-row').forEach(row => {
+    bindCustomRowEvents(row);
+});
+
+// 新增行时使用统一结构
+function createCustomRow(rate, bpm, interval) {
+    const row = document.createElement('div');
+    row.className = 'custom-tempo-row';
+    row.innerHTML = `
+        <button class="step-btn custom-rate-minus">-</button>
+        <span class="rate-val">${rate}</span>
+        <button class="step-btn custom-rate-plus">+</button>
+        <span class="bpm-val">${bpm}</span>
+        <div class="interval-wrapper">
+            <button class="step-btn custom-intv-minus">-</button>
+            <input type="number" class="train-input sm custom-interval-input" value="${interval}">
+            <button class="step-btn custom-intv-plus">+</button>
+        </div>
+    `;
+    bindCustomRowEvents(row);
+    return row;
+}
+
+// 修改“增加过程”按钮的逻辑，使用新的创建函数
+document.getElementById('btnAddProcess').addEventListener('click', () => {
+    const rows = document.querySelectorAll('#customTempoList .custom-tempo-row');
+    if (rows.length >= 10) return;
+    const lastRow = rows[rows.length - 1];
+    let rate = 1.0;
+    let bpm = 100;
+    if (lastRow) {
+        const lastRate = parseFloat(lastRow.querySelector('.rate-val').textContent);
+        if (!isNaN(lastRate)) rate = Math.round((lastRate + 0.2) * 10) / 10;
+        bpm = Math.round(rate * BASE_BPM_FOR_RATE);
+    }
+    const newRow = createCustomRow(rate.toFixed(1), bpm, 10);
+    document.getElementById('customTempoList').appendChild(newRow);
+});
+
+// 删除过程按钮（若存在）
+const btnRemoveProcess = document.getElementById('btnRemoveProcess');
+if (btnRemoveProcess) {
+    btnRemoveProcess.addEventListener('click', () => {
+        const rows = document.querySelectorAll('#customTempoList .custom-tempo-row');
+        if (rows.length > 1) {
+            rows[rows.length - 1].remove();
+        }
+    });
+}
+
+// 目标行按钮
+const btnTargetMinus = document.getElementById('btnTargetMinus');
+const btnTargetPlus = document.getElementById('btnTargetPlus');
+const customTargetBpm = document.getElementById('customTargetBpm');
+const customTargetInterval = document.getElementById('customTargetInterval');
+
+if (btnTargetMinus && customTargetBpm) {
+    btnTargetMinus.addEventListener('click', () => {
+        let v = parseInt(customTargetBpm.value, 10);
+        if (!isNaN(v) && v > MIN_BPM) {
+            customTargetBpm.value = v - 1;
+        }
+    });
+}
+if (btnTargetPlus && customTargetBpm) {
+    btnTargetPlus.addEventListener('click', () => {
+        let v = parseInt(customTargetBpm.value, 10);
+        if (!isNaN(v) && v < MAX_BPM) {
+            customTargetBpm.value = v + 1;
+        }
+    });
+}
+
+// 训练停止按钮
+if (trainRunStopBtn) {
+    trainRunStopBtn.addEventListener('click', () => {
+        stopTraining();
+    });
+}
+
+// 初始隐藏训练运行面板中的停止按钮
+if (trainRunStopBtn) {
+    trainRunStopBtn.style.display = 'none';
+}
+
+// 初始化渲染
+renderMatrix();
+updateBpm(currentBpm);
+    </script>
+
+</body>
+
+</html>
