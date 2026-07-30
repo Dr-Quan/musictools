@@ -371,7 +371,7 @@
                 line.setAttribute('x2', offsetX + 5 * stringSpacing);
                 line.setAttribute('y2', y);
                 line.setAttribute('stroke', 'black');
-                line.setAttribute('stroke-width', f === 0 ? '4' : '1');
+                line.setAttribute('stroke-width', (f === 0 && startFret === 1) ? '4' : '1');
                 svg.appendChild(line);
             }
 
