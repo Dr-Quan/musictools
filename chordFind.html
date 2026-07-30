@@ -2,7 +2,7 @@
 <html lang="zh-Hans">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>和弦查找器 – 离线版</title>
     <style>
         * {
@@ -117,15 +117,21 @@
             white-space: nowrap;
         }
 
+        /* ==================== 单个和弦视图 ==================== */
+        #singleChordView {
+            /* 默认显示 */;
+        }
+
         .diagrams-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 16px;
             margin-top: 25px;
         }
+
         @media (max-width: 900px) {
             .diagrams-grid {
-                grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 gap: 12px;
             }
         }
@@ -134,6 +140,12 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        /* ==================== 矩阵视图 ==================== */
+        #matrixView {
+            display: none;
+        }
+
         .diagram-card {
             background: #fff;
             border: 1px solid #e0e0e0;
@@ -168,6 +180,105 @@
             text-align: center;
             grid-column: 1 / -1;
         }
+
+        .display-mode {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+        }
+
+        .display-mode label {
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .display-mode input {
+            cursor: pointer;
+        }
+
+        /* ==================== 和弦矩阵外层滚动容器 ==================== */
+        .matrix-container {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: auto;
+            margin-top: 25px;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+        }
+
+        /* 桌面端：表格填满容器宽度，列宽均匀分配 */
+        .matrix-container table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            min-width: 100%;
+        }
+
+        .matrix-container th {
+            background: #72ac51;
+            color: white;
+            padding: 5px;
+            white-space: nowrap;
+            word-break: keep-all;
+        }
+
+        .matrix-container td {
+            border: 1px solid #ddd;
+            text-align: center;
+            vertical-align: top;
+            padding: 5px;
+            min-width: 120px;
+        }
+
+        .matrix-container tr th:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #72ac51;
+        }
+
+        .matrix-chord-name {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .matrix-cell svg {
+            width: auto;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* ==================== 手机端矩阵 ==================== */
+        @media(max-width:900px) {
+            .matrix-container {
+                max-height: 75vh;
+                overflow-x: auto;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-x pan-y;
+            }
+
+            /* 窄屏下表格恢复内容宽度，触发横向滚动 */
+            .matrix-container table {
+                width: max-content;
+                table-layout: auto;
+                min-width: auto;
+            }
+
+            .matrix-container td {
+                min-width: 150px;
+            }
+
+            .matrix-cell svg {
+                width: auto;
+                height: auto;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -196,6 +307,20 @@
                     </select>
                     <select id="typeSelect">
                     </select>
+                    <div class="display-mode">
+                        <label>
+                            <input type="radio" name="chordMode" id="singleMode" checked>
+                            单个选择
+                        </label>
+                        <label>
+                            <input type="radio" name="chordMode" id="diatonicMode">
+                            顺阶和弦
+                        </label>
+                        <label>
+                            <input type="radio" name="chordMode" id="commonMode">
+                            常用和弦
+                        </label>
+                    </div>
                 </div>
                 <div class="chord-notes" id="notesContainer">
                     <span class="chord-notes-text">和弦的音：</span>
@@ -204,7 +329,17 @@
             </div>
         </div>
 
-        <div class="diagrams-grid" id="diagramsGrid"></div>
+        <!-- 单个和弦视图 -->
+        <div id="singleChordView">
+            <div class="diagrams-grid" id="diagramsGrid">
+            </div>
+        </div>
+
+        <!-- 矩阵视图（顺阶/常用） -->
+        <div id="matrixView">
+            <div class="matrix-container" id="matrixContainer">
+            </div>
+        </div>
     </div>
 
     <script>
@@ -286,7 +421,6 @@
             "69": [0, 2, 4, 7, 9],
         };
 
-        // 扁平化 chordSemitones：将嵌套分类展开为 { chordTypeName: [semitones] }
         const flatChordSemitones = {};
         for (const [key, value] of Object.entries(chordSemitones)) {
             if (Array.isArray(value)) {
@@ -298,72 +432,62 @@
             }
         }
 
-        // ==================== 音级覆盖表（非标准三度堆叠的和弦） ====================
-        // 标准模式：degreeSteps = (i * 2) % 7（即连续三度堆叠）
-        // 以下和弦不遵循标准模式，需要手动指定级数（0-based字母偏移）
         const degreeOverrides = {
-            "6": [0, 2, 4, 5], // 大六和弦: 1,3,5,6
-            "m6": [0, 2, 4, 5], // 小六和弦: 1,3,5,6
-            "sus4": [0, 3, 4], // 挂四和弦: 1,4,5
-            "sus2": [0, 1, 4], // 挂二和弦: 1,2,5
-            "add9": [0, 1, 2, 4], // 加九和弦: 1,2,3,5
-            "69": [0, 1, 2, 4, 5], // 六九和弦: 1,2,3,5,6
-            "7sus4": [0, 3, 4, 6], // 属七挂四: 1,4,5,7
-            "5": [0, 4], // 强力和弦: 1,5
+            "6": [0, 2, 4, 5],
+            "m6": [0, 2, 4, 5],
+            "sus4": [0, 3, 4],
+            "sus2": [0, 1, 4],
+            "add9": [0, 1, 2, 4],
+            "69": [0, 1, 2, 4, 5],
+            "7sus4": [0, 3, 4, 6],
+            "5": [0, 4],
         };
 
-        // ==================== 基础映射表 ====================
         const letters = ["C", "D", "E", "F", "G", "A", "B"];
 
-        const rootMap = {
-            "C": 0,
-            "D": 2,
-            "E": 4,
-            "F": 5,
-            "G": 7,
-            "A": 9,
-            "B": 11,
+        const diatonicPatterns = {
+            "F": [["F", ""], ["G", "m"], ["A", "m"], ["Bb", ""], ["C", ""], ["D", "m"], ["E", "dim"]],
+            "C": [["C", ""], ["D", "m"], ["E", "m"], ["F", ""], ["G", ""], ["A", "m"], ["B", "dim"]],
+            "G": [["G", ""], ["A", "m"], ["B", "m"], ["C", ""], ["D", ""], ["E", "m"], ["F#", "dim"]],
+            "D": [["D", ""], ["E", "m"], ["F#", "m"], ["G", ""], ["A", ""], ["B", "m"], ["C#", "dim"]],
+            "A": [["A", ""], ["B", "m"], ["C#", "m"], ["D", ""], ["E", ""], ["F#", "m"], ["G#", "dim"]],
+            "E": [["E", ""], ["F#", "m"], ["G#", "m"], ["A", ""], ["B", ""], ["C#", "m"], ["D#", "dim"]],
+            "B": [["B", ""], ["C#", "m"], ["D#", "m"], ["E", ""], ["F#", ""], ["G#", "m"], ["A#", "dim"]],
+            "F#": [["F#", ""], ["G#", "m"], ["A#", "m"], ["B", ""], ["C#", ""], ["D#", "m"], ["E#", "dim"]],
+            "Db": [["Db", ""], ["Eb", "m"], ["F", "m"], ["Gb", ""], ["Ab", ""], ["Bb", "m"], ["C", "dim"]],
+            "Ab": [["Ab", ""], ["Bb", "m"], ["C", "m"], ["Db", ""], ["Eb", ""], ["F", "m"], ["G", "dim"]],
+            "Eb": [["Eb", ""], ["F", "m"], ["G", "m"], ["Ab", ""], ["Bb", ""], ["C", "m"], ["D", "dim"]],
+            "Bb": [["Bb", ""], ["C", "m"], ["D", "m"], ["Eb", ""], ["F", ""], ["G", "m"], ["A", "dim"]]
+
         };
 
-        const accidentalMap = {
-            "": 0,
-            "#": 1,
-            "b": -1,
-        };
+        const commonChordTypes = [
+            { name: "", label: "大三" },
+            { name: "m", label: "小三" },
+            { name: "7", label: "属七" },
+            { name: "Maj7", label: "大七" },
+            { name: "m7", label: "小七" },
+            { name: "dim7", label: "减七" },
+            { name: "m7b5", label: "半减七" }
+        ];
 
-        // ==================== 等音转换表（用于JSON键名查找） ====================
+        const rootMap = { "C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11 };
+        const accidentalMap = { "": 0, "#": 1, "b": -1 };
+
         const enharmonic = {
-            'C#': 'Db',
-            'D#': 'Eb',
-            'F#': 'Gb',
-            'G#': 'Ab',
-            'A#': 'Bb',
-            'E#': 'F',
-            'B#': 'C',
-            'Cb': 'B',
-            'Fb': 'E',
+            'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb',
+            'E#': 'F', 'B#': 'C', 'Cb': 'B', 'Fb': 'E',
         };
 
-        // ==================== 辅助函数 ====================
-        /**
-         * 将半音差值转换为升降号字符串
-         * @param {number} diff - 实际半音与理论半音的差值（-6~+6范围归一化后为-2~+2）
-         * @returns {string} 升降号字符串
-         */
         function accidental(diff) {
             if (diff === -2) return "bb";
             if (diff === -1) return "b";
             if (diff === 0) return "";
             if (diff === 1) return "#";
             if (diff === 2) return "##";
-            return ""; // 理论上不会出现
+            return "";
         }
 
-        /**
-         * 将升降号字符串转换为显示用的Unicode字符
-         * @param {string} acc - 升降号字符串 ("", "#", "b", "##", "bb")
-         * @returns {string} 用于显示的Unicode字符串
-         */
         function accidentalToDisplay(acc) {
             if (acc === "#") return "♯";
             if (acc === "b") return "♭";
@@ -372,76 +496,37 @@
             return "";
         }
 
-        /**
-         * 获取和弦的级数数组（0-based字母偏移）
-         * @param {string} chordType - 和弦类型名
-         * @param {number} length - 半音数组长度
-         * @returns {number[]} 级数数组
-         */
         function getDegreeSteps(chordType, length) {
-            // 优先使用覆盖
-            if (degreeOverrides[chordType] !== undefined) {
-                return degreeOverrides[chordType];
-            }
-            // 标准模式：(i*2)%7 生成连续三度堆叠
+            if (degreeOverrides[chordType] !== undefined) return degreeOverrides[chordType];
             const steps = [];
-            for (let i = 0; i < length; i++) {
-                steps.push((i * 2) % 7);
-            }
+            for (let i = 0; i < length; i++) steps.push((i * 2) % 7);
             return steps;
         }
 
-        /**
-         * 计算和弦的组成音符（理论正确的音名）
-         * @param {string} rootLetter - 根音字母 (C~B)
-         * @param {string} rootAlter - 根音升降号 ("", "#", "b")
-         * @param {string} chordType - 和弦类型名
-         * @returns {{ noteNames: string[], displayNames: string[] }|null} 音符名称数组
-         */
         function getChordNotes(rootLetter, rootAlter, chordType) {
             const semitones = flatChordSemitones[chordType];
             if (!semitones) return null;
-
             const rootIndex = letters.indexOf(rootLetter);
             if (rootIndex === -1) return null;
-
             const rootSemi = rootMap[rootLetter] + (accidentalMap[rootAlter] || 0);
             const degreeSteps = getDegreeSteps(chordType, semitones.length);
-
             const noteNames = [];
             const displayNames = [];
-
             for (let i = 0; i < semitones.length; i++) {
-                // 字母级数（7进制循环）
                 const degreeIndex = (rootIndex + degreeSteps[i]) % 7;
                 const letter = letters[degreeIndex];
-
-                // 实际半音（12进制）
                 const actual = (rootSemi + semitones[i]) % 12;
-
-                // 理论半音（该字母的自然半音值）
                 const base = rootMap[letter];
-
-                // 差值修正
                 let diff = actual - base;
                 if (diff > 6) diff -= 12;
                 if (diff < -6) diff += 12;
-
                 const acc = accidental(diff);
                 noteNames.push(letter + acc);
                 displayNames.push(letter + accidentalToDisplay(acc));
             }
-
             return { noteNames, displayNames };
         }
 
-        /**
-         * 生成用于JSON键名查找的和弦键（使用等音转换）
-         * @param {string} root - 根音字母
-         * @param {string} alter - 升降号
-         * @param {string} type - 和弦类型
-         * @returns {string} 和弦键名
-         */
         function getChordKey(root, alter, type) {
             const base = root + alter;
             const normalized = enharmonic[base] || base;
@@ -457,6 +542,12 @@
         const intervalDisplay = document.getElementById('intervalDisplay');
         const notesList = document.getElementById('notesList');
         const diagramsGrid = document.getElementById('diagramsGrid');
+        const matrixContainer = document.getElementById('matrixContainer');
+        const singleChordView = document.getElementById('singleChordView');
+        const matrixView = document.getElementById('matrixView');
+        const singleMode = document.getElementById("singleMode");
+        const diatonicMode = document.getElementById("diatonicMode");
+        const commonMode = document.getElementById("commonMode");
 
         // ==================== 填充和弦类型下拉框 ====================
         chordTypes.forEach(t => {
@@ -469,6 +560,7 @@
         // ==================== 全局状态 ====================
         let chordsData = null;
         let currentFingerings = [];
+        let displayMode = "single";
 
         // ==================== 吉他指法SVG渲染（横按检测） ====================
         function parseBarres(p, f) {
@@ -481,7 +573,6 @@
                     fIndex++;
                 }
             }
-
             const fingerMap = {};
             for (let i = 0; i < NUM_STRINGS; i++) {
                 if (p[i] === 'x' || p[i] === '0') continue;
@@ -490,7 +581,6 @@
                 if (!fingerMap[finger]) fingerMap[finger] = [];
                 fingerMap[finger].push({ string: i, fret: fret });
             }
-
             const barres = [];
             for (const [finger, positions] of Object.entries(fingerMap)) {
                 if (positions.length < 2) continue;
@@ -536,7 +626,6 @@
             svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
             svg.style.overflow = 'visible';
 
-            // 弦
             for (let i = 0; i < 6; i++) {
                 const x = offsetX + i * stringSpacing;
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -549,7 +638,6 @@
                 svg.appendChild(line);
             }
 
-            // 品丝
             for (let f = 0; f <= numFrets; f++) {
                 const y = offsetY + f * fretHeight;
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -579,7 +667,6 @@
                 return offsetY + relativeFret * fretHeight - fretHeight / 2;
             }
 
-            // 横按条
             barres.forEach(bar => {
                 const x = offsetX + bar.from * stringSpacing - 10;
                 const width = (bar.to - bar.from) * stringSpacing + 20;
@@ -604,18 +691,14 @@
                 svg.appendChild(text);
             });
 
-            // 单音
             for (let i = 0; i < 6; i++) {
                 const fret = p[i];
                 const x = offsetX + i * stringSpacing;
-
                 if (fret === 'x') {
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     g.setAttribute('transform', `translate(${x - 12}, ${offsetY - 33})`);
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    path.setAttribute('d',
-                        'M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'
-                        );
+                    path.setAttribute('d', 'M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z');
                     path.setAttribute('stroke', 'black');
                     path.setAttribute('fill', 'black');
                     g.appendChild(path);
@@ -641,7 +724,6 @@
                         circle.setAttribute('r', '16');
                         circle.setAttribute('fill', '#72ac51');
                         svg.appendChild(circle);
-
                         if (fingers[i]) {
                             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                             text.setAttribute('x', x);
@@ -666,13 +748,20 @@
                 updateChord();
             } catch (e) {
                 diagramsGrid.innerHTML = '<div class="no-chord-message">无法加载 chords-guitar-ukulele.json</div>';
-                // 即使JSON加载失败，仍然计算并显示和弦音符
                 updateChordNotesOnly();
             }
         }
 
         // ==================== 核心更新函数 ====================
         function updateChord() {
+            if (displayMode === "diatonic") {
+                renderDiatonicMatrix();
+                return;
+            }
+            if (displayMode === "common") {
+                renderCommonMatrix();
+                return;
+            }
             if (!chordsData) {
                 updateChordNotesOnly();
                 return;
@@ -680,63 +769,134 @@
             fullUpdate();
         }
 
-        /**
-         * 仅更新和弦音符显示（JSON加载失败时使用）
-         */
         function updateChordNotesOnly() {
             const root = rootSelect.value;
             const alter = alterSelect.value;
             const type = typeSelect.value;
-
             updateChordNameDisplay(root, alter, type);
             updateNotesDisplay(root, alter, type);
-
             currentFingerings = [];
             diagramsGrid.innerHTML = '<div class="no-chord-message">指法数据未加载</div>';
         }
 
-        /**
-         * 完整更新（音符+指法图）
-         */
         function fullUpdate() {
             const root = rootSelect.value;
             const alter = alterSelect.value;
             const type = typeSelect.value;
             const key = getChordKey(root, alter, type);
-
             updateChordNameDisplay(root, alter, type);
             updateNotesDisplay(root, alter, type);
-
-            // 从JSON获取吉他指法
             const guitarData = chordsData.EADGBE;
             if (!guitarData || !guitarData[key]) {
                 currentFingerings = [];
                 diagramsGrid.innerHTML = '<div class="no-chord-message">未找到该和弦的指法</div>';
                 return;
             }
-
             currentFingerings = guitarData[key];
             renderAllDiagrams();
         }
 
-        /**
-         * 更新和弦名称显示区域
-         */
+        // ==================== 矩阵单元（wrapper不再使用matrix-container类，避免嵌套滚动） ====================
+        function createMatrixCell(root, type) {
+            const cell = document.createElement("td");
+            cell.className = "matrix-cell";
+            const name = root + type;
+            const title = document.createElement("div");
+            title.className = "matrix-chord-name";
+            title.textContent = name;
+            cell.appendChild(title);
+            if (!chordsData || !chordsData.EADGBE) return cell;
+            let alter = "";
+            let letter = root[0];
+            if (root.length > 1) alter = root[1];
+            let key = getChordKey(letter, alter, type);
+            const data = chordsData.EADGBE[key];
+            if (data && data.length) {
+                const card = document.createElement("div");
+                card.className = "diagram-card";
+                card.appendChild(createSvg(data[0]));
+                cell.appendChild(card);
+            } else {
+                const none = document.createElement("div");
+                none.textContent = "—";
+                none.style.color = "#aaa";
+                cell.appendChild(none);
+            }
+            return cell;
+        }
+
+        // ==================== 顺阶和弦矩阵 ====================
+        function renderDiatonicMatrix() {
+            matrixContainer.innerHTML = "";
+            const wrapper = document.createElement("div");
+            wrapper.className = "matrix-table-wrap";
+            const table = document.createElement("table");
+            const header = document.createElement("tr");
+            const empty = document.createElement("th");
+            header.appendChild(empty);
+            const roman = ["Ⅰ", "Ⅱm", "Ⅲm", "Ⅳ", "Ⅴ", "Ⅵm", "Ⅶ°"];
+            roman.forEach(r => {
+                const th = document.createElement("th");
+                th.textContent = r;
+                header.appendChild(th);
+            });
+            table.appendChild(header);
+            Object.keys(diatonicPatterns).forEach(root => {
+                const tr = document.createElement("tr");
+                const name = document.createElement("th");
+                name.textContent = root;
+                tr.appendChild(name);
+                diatonicPatterns[root].forEach(item => {
+                    const cell = createMatrixCell(item[0], item[1]);
+                    tr.appendChild(cell);
+                });
+                table.appendChild(tr);
+            });
+            wrapper.appendChild(table);
+            matrixContainer.appendChild(wrapper);
+        }
+
+        // ==================== 常用和弦矩阵 ====================
+        function renderCommonMatrix() {
+            matrixContainer.innerHTML = "";
+            const wrapper = document.createElement("div");
+            wrapper.className = "matrix-table-wrap";
+            const table = document.createElement("table");
+            const header = document.createElement("tr");
+            const blank = document.createElement("th");
+            header.appendChild(blank);
+            commonChordTypes.forEach(c => {
+                const th = document.createElement("th");
+                th.textContent = c.label;
+                header.appendChild(th);
+            });
+            table.appendChild(header);
+            const roots = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+            roots.forEach(root => {
+                const tr = document.createElement("tr");
+                const name = document.createElement("th");
+                name.textContent = root;
+                tr.appendChild(name);
+                commonChordTypes.forEach(c => {
+                    const cell = createMatrixCell(root, c.name);
+                    tr.appendChild(cell);
+                });
+                table.appendChild(tr);
+            });
+            wrapper.appendChild(table);
+            matrixContainer.appendChild(wrapper);
+        }
+
         function updateChordNameDisplay(root, alter, type) {
             const alterSign = alter === '#' ? '♯' : alter === 'b' ? '♭' : '';
             chordNameDisplay.innerHTML = root + (alterSign ? alterSign : '');
-
             const chordTypeObj = chordTypes.find(t => t.name === type) || {};
             minorDisplay.innerHTML = chordTypeObj.value || '';
             intervalDisplay.textContent = chordTypeObj.label || '';
         }
 
-        /**
-         * 更新音符列表显示
-         */
         function updateNotesDisplay(root, alter, type) {
             notesList.innerHTML = '';
-
             const result = getChordNotes(root, alter, type);
             if (!result) {
                 const li = document.createElement('li');
@@ -745,7 +905,6 @@
                 notesList.appendChild(li);
                 return;
             }
-
             const { displayNames } = result;
             displayNames.forEach(name => {
                 const li = document.createElement('li');
@@ -754,16 +913,12 @@
             });
         }
 
-        /**
-         * 渲染所有指法图
-         */
         function renderAllDiagrams() {
             diagramsGrid.innerHTML = '';
             if (!currentFingerings.length) {
                 diagramsGrid.innerHTML = '<div class="no-chord-message">无指法数据</div>';
                 return;
             }
-
             currentFingerings.forEach((fingering) => {
                 const card = document.createElement('div');
                 card.className = 'diagram-card';
@@ -779,6 +934,26 @@
         rootSelect.addEventListener('change', updateChord);
         alterSelect.addEventListener('change', updateChord);
         typeSelect.addEventListener('change', updateChord);
+        singleMode.addEventListener("change", changeDisplayMode);
+        diatonicMode.addEventListener("change", changeDisplayMode);
+        commonMode.addEventListener("change", changeDisplayMode);
+
+        function changeDisplayMode() {
+            if (diatonicMode.checked) {
+                displayMode = "diatonic";
+                singleChordView.style.display = "none";
+                matrixView.style.display = "block";
+            } else if (commonMode.checked) {
+                displayMode = "common";
+                singleChordView.style.display = "none";
+                matrixView.style.display = "block";
+            } else {
+                displayMode = "single";
+                singleChordView.style.display = "block";
+                matrixView.style.display = "none";
+            }
+            updateChord();
+        }
 
         // ==================== 初始化 ====================
         loadData();
