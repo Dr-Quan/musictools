@@ -12,3 +12,5 @@
 [测试调音器](https://dr-quan.github.io/musictools/tuner_test.html)
 
 [吉他和弦查询](https://dr-quan.github.io/musictools/chordFind.html)
+
+[仿真吉他](https://dr-quan.github.io/musictools/guitar.html)
