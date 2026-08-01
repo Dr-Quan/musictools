@@ -1,0 +1,554 @@
+<style>
+/* ========== 原全局与组件样式（保持不变） ========== */
+.controls-dropdown[data-v-6cce78e6]{margin-right:8px}.controls-dropdown button[data-v-6cce78e6]{margin-right:0}.controls-dropdown .dropdown[data-v-6cce78e6]{position:relative;display:inline-block}.controls-dropdown .dropdown--highlight[data-v-6cce78e6]{min-width:0;text-align:center;display:block;width:100%;min-width:70px;position:absolute;background-color:#fff;box-shadow:0 8px 16px 0 rgba(0,0,0,.2);z-index:99;border-radius:4px}.controls-dropdown .dropdown--highlight li[data-v-6cce78e6]{padding:7px 0;font-size:13px;text-decoration:none;white-space:nowrap;transition:all .2s ease;cursor:pointer}.controls-dropdown .dropdown--highlight li.active[data-v-6cce78e6]{transition:all .3s ease}.controls-dropdown .dropdown--highlight li.active[data-v-6cce78e6]:hover{color:#fff;filter:brightness(115%)}.controls-dropdown .dropdown--highlight .group--notes[data-v-6cce78e6]{display:flex;background-color:#f5f2f2}.controls-dropdown .dropdown--highlight .group--notes li[data-v-6cce78e6]{width:100%;white-space:nowrap}.controls-dropdown .dropdown--highlight .group--notes li[data-v-6cce78e6]:first-child{border-right:1px solid #e9e9e9}.controls-dropdown .dropdown--highlight li[data-v-6cce78e6]:hover{background-color:#e4e4e4;color:#222}.controls-dropdown .dropdown:hover .dropdown--highlight[data-v-6cce78e6]{display:block}.controls-dropdown .active[data-v-6cce78e6]{color:#fff}.controls-dropdown [data-note-color=sort-c].active[data-v-6cce78e6],.controls-dropdown [data-note-color=sort-c].active[data-v-6cce78e6]:hover{background-color:#72ac51}.controls-dropdown [data-note-color=sort-d].active[data-v-6cce78e6],.controls-dropdown [data-note-color=sort-d].active[data-v-6cce78e6]:hover{background-color:#db4437}.controls-dropdown [data-note-color=sort-e].active[data-v-6cce78e6],.controls-dropdown [data-note-color=sort-e].active[data-v-6cce78e6]:hover{background-color:#f4b400}.controls-dropdown [data-note-color=sort-f].active[data-v-6cce78e6],.controls-dropdown [data-note-color=sort-f].active[data-v-6cce78e6]:hover{background-color:#3e96d1}.controls-dropdown [data-note-color=sort-g].active[data-v-6cce78e6],.controls-dropdown [data-note-color=sort-g].active[data-v-6cce78e6]:hover{background-color:#ac5172}.controls-dropdown [data-note-color=sort-a].active[data-v-6cce78e6],.controls-dropdown [data-note-color=sort-a].active[data-v-6cce78e6]:hover{background-color:#8a6353}.controls-dropdown [data-note-color=sort-h].active[data-v-6cce78e6],.controls-dropdown [data-note-color=sort-h].active[data-v-6cce78e6]:hover{background-color:#555}.buttons-module{max-width:100%;overflow-x:scroll;padding:0 75px}::-webkit-scrollbar{width:0}::-webkit-scrollbar,::-webkit-scrollbar-thumb{background:transparent}.buttons-module-inner{display:flex;height:500px}.buttons-module-inner:after{content:" ";white-space:pre}.buttons-module button{height:37px;margin-right:8px;font-size:14px;background:#f8f8f8;padding:8px 14px;border:1px solid #eee;border-radius:4px;color:#000;transition:.25s ease;cursor:pointer;white-space:nowrap;z-index:1}.buttons-module button:focus{outline:0}.buttons-module button:hover{border-color:#dadada;box-shadow:0 5px 10px rgba(0,0,0,.2)}.buttons-module button.active{transition:background .05s;background-color:#e4e4e4;border-color:#dadada}.dropdown{position:relative;height:200px}.dropdown-content{display:flex;position:absolute;left:0;border-radius:4px;background-color:#f1f1f1;box-shadow:0 8px 16px 0 rgba(0,0,0,.2);z-index:3}.dropdown-content li{color:#000;font-size:13px;padding:10px 14px;text-decoration:none;cursor:pointer;transition:all .2s ease}.dropdown-content ul{background-color:#fff;box-shadow:0 8px 16px 0 rgba(0,0,0,.2);white-space:nowrap;position:absolute;border-radius:4px}.dropdown-content li:hover{background-color:#e4e4e4;color:#222;border-radius:4px}.dropdown:hover .dropdown-content{display:block}@media screen and (max-width:1005px){.buttons-module{width:750px;margin:auto;padding:0 60px}}@media screen and (max-width:767px){.buttons-module{padding:0 15px}}@media screen and (max-width:410px){.dropdown-content,.dropdown-content ul{right:0}}.strings[data-v-556f695a]{display:flex;flex-direction:column;justify-content:space-between;position:absolute;height:211px;width:100%;z-index:1}.strings li[data-v-556f695a]{width:100%;height:100%;display:flex;align-items:center}.strings li .string-left[data-v-556f695a]{background-color:#ba9;margin-left:1rem}.strings li .string-right[data-v-556f695a]{transform-origin:0;background-color:#ba9}.strings li span[data-v-556f695a]{display:flex;height:3px;box-shadow:.04em .37em .02em 0 rgba(0,0,0,.1);background-image:repeating-linear-gradient(50deg,rgba(0,0,0,.6),transparent .15em,transparent .2em),linear-gradient(180deg,rgba(0,0,0,.1) 10%,hsla(0,0%,100%,.25) 15%,hsla(0,0%,100%,.8) 30%,hsla(0,0%,100%,.25) 45%,rgba(0,0,0,.6) 90%)}.strings li:nth-child(4) span[data-v-556f695a]{height:4px}.strings li:nth-child(5) span[data-v-556f695a]{height:5px}.strings li:nth-child(6) span[data-v-556f695a]{height:6px}@media screen and (max-width:992px){.strings[data-v-556f695a]{width:100%}.strings li .string-left[data-v-556f695a]{margin-left:1rem}}@media screen and (max-width:850px){.strings[data-v-556f695a]{width:93%}}@media screen and (max-width:776px){.strings[data-v-556f695a]{width:785px}}
+
+/* ========== 琴头修改：增加 z-index 使梯形显示在琴颈上方 ========== */
+.headstock-wrap{
+    position:absolute;
+    width:75px;
+    top:0;
+    margin-left:-75px;
+    z-index: 1;                /* 新增：确保琴头在琴颈底板之上 */
+}
+.headstock-wrap .headstock{
+    position:relative;
+    height:238px;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+/* 梯形伪元素 */
+.headstock::before{
+    content:"";
+    position:absolute;
+    width:75px;
+    height:238px;
+    background:#722f37;
+    clip-path:polygon(0 0, 100% 6%, 100% 94%, 0 100%);
+    top:0;
+    left:0;
+    z-index:-1;               /* 保持在琴弦下层 */
+}
+
+/* 六根琴弦样式（完全保留） */
+.headstock-wrap .headstock .headstock-string-f{
+    height:3px;
+    top:1.8rem;
+    width:95px;
+    box-shadow:.04em .37em .02em 0 rgba(0,0,0,.1);
+}
+.headstock-wrap .headstock .headstock-string-h{
+    height:3px;
+    top:4rem;
+    width:95px;
+    box-shadow:.04em .37em .02em 0 rgba(0,0,0,.1);
+}
+.headstock-wrap .headstock .headstock-string-g{
+    height:3px;
+    top:6.15rem;
+    width:95px;
+    box-shadow:.04em .37em .02em 0 rgba(0,0,0,.1);
+}
+.headstock-wrap .headstock .headstock-string-d{
+    height:4px;
+    top:8.34rem;
+    width:95px;
+    box-shadow:.04em .37em .02em 0 rgba(0,0,0,.1);
+}
+.headstock-wrap .headstock .headstock-string-a{
+    height:5px;
+    top:10.55rem;
+    width:95px;
+    box-shadow:.04em .37em .02em 0 rgba(0,0,0,.1);
+}
+.headstock-wrap .headstock .headstock-string-e{
+    height:6px;
+    top:12.7rem;
+    width:95px;
+    box-shadow:.04em .37em .02em 0 rgba(0,0,0,.1);
+}
+.headstock ul li{
+    width:100px;
+    height:5px;
+    position:absolute;
+    background-color:#ba9;
+    background-image: repeating-linear-gradient(50deg,rgba(0,0,0,.6),transparent .15em,transparent .2em),
+                      linear-gradient(180deg,rgba(0,0,0,.3) 10%,hsla(0,0%,100%,.25) 15%,hsla(0,0%,100%,.8) 30%,hsla(0,0%,100%,.25) 45%,rgba(0,0,0,.6) 90%);
+}
+
+/* ========== 吉他琴颈及其他 ========== */
+.guitar-neck{
+    display:flex;
+    margin-top:.5rem;
+    height:238px;
+	width:1450px;
+    transform-origin: left top;
+    position:relative;
+    overflow:hidden;
+    -webkit-user-select:none;
+    -moz-user-select:none;
+    user-select:none;
+}
+.guitar-neck>ul{
+    margin-top:.8rem;
+    display:flex;
+    padding-left:75px;
+    height:210px;
+    width:100%;
+    box-shadow: inset 0 15px 15px -3px #a48770,inset 0 -15px 15px -3px #a48770;
+    background:#eca;
+}
+.guitar-neck>ul>li{
+    border-right:1px solid #8f8f8f;
+    display:flex;
+    align-items:center;
+    flex-direction:column;
+    cursor:pointer;
+    position:relative;
+    flex:1;
+}
+.guitar-neck>ul>li.fret--first{
+    flex:0 1 auto;
+    min-width:35px;
+    width:auto;
+    padding:0 2px;
+    font-size:18px;
+    border-right:none;
+    z-index:2;
+}
+.guitar-neck>ul>li *{
+    -webkit-user-select:none;
+    -moz-user-select:none;
+    user-select:none;
+}
+.guitar-neck>ul>li:after{
+    content:" ";
+    position:absolute;
+    top:0;
+    left:0;
+    border-right:1px solid #454545;
+    height:100%;
+    width:1px;
+}
+.guitar-neck>ul>li:nth-child(2):after,
+.guitar-neck>ul>li:nth-child(3):after{
+    border-right:none;
+}
+.guitar-neck>ul>li:last-of-type{
+    border:none;
+}
+.guitar-neck>ul>li>span{
+    width:100%;
+    height:100px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:2;
+}
+.guitar-neck>ul>li .note-name{
+    opacity:0;
+}
+.guitar-neck>ul>li .note-name span{
+    white-space:nowrap;
+}
+.guitar-neck .active--note .note-name,
+.guitar-neck>ul>li .show--note .note-name{
+    opacity:1;
+}
+.guitar-neck>ul>li span i{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:30px;
+    width:30px;
+    max-width:100%;
+    background:hsla(0,0%,100%,.75);
+    color:#2f2f2f;
+    border-radius:50%;
+    font-style:normal;
+    font-size:15px;
+    box-shadow:0 3px 5px 0 rgba(0,0,0,.75);
+    cursor:pointer;
+    z-index:2;
+}
+.guitar-neck>ul>li .dots{
+    margin:auto;
+    left:0;
+    right:0;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:#d3b24f;
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+}
+.guitar-neck>ul>li .dots-double{
+    display:flex;
+    height:160px;
+    top:50%;
+    position:absolute;
+    transform:translateY(-50%);
+}
+.guitar-neck>ul>li .dots-double span:first-child,
+.guitar-neck>ul>li .dots-double span:last-child{
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:#d3b24f;
+    opacity:1;
+}
+.guitar-neck>ul>li .dots-double span:last-child{
+    position:absolute;
+    bottom:0;
+}
+.guitar-neck .fret--first{
+    background: #333;
+}
+.guitar-neck .fret--first .open-fret-note-name{
+    color:#fff;
+    opacity:1;
+}
+.guitar-neck .fret--first span i{
+    position:absolute;
+    background:transparent;
+    color:#fff;
+    box-shadow:none;
+}
+.guitar-neck .fret--first .active--note i{
+    box-shadow:0 3px 5px 0 rgba(0,0,0,.75);
+}
+.guitar-neck .fret--first .active--note .open-fret-note-name{
+    visibility:hidden;
+}
+.guitar-neck>ul>li span.active--note,
+.guitar-neck>ul>li span.active--note-first{
+    opacity:1!important;
+}
+.guitar-neck>ul>li span.active--note-first i{
+    background:#72ac51!important;
+    color:#fff;
+    text-transform:uppercase;
+    font-size:19.2px;
+    font-size:1.2rem;
+}
+.controls [data-note-color=sort-c]._active,
+.guitar-neck [note=c].active--note i,
+.guitar-neck [note=cis].active--note i{
+    background:#72ac51;
+}
+.controls [data-note-color=sort-d]._active,
+.guitar-neck [note=d].active--note i,
+.guitar-neck [note=des].active--note i,
+.guitar-neck [note=dis].active--note i{
+    background:#db4437;
+}
+.controls [data-note-color=sort-e]._active,
+.guitar-neck [note=e].active--note i,
+.guitar-neck [note=es].active--note i{
+    background:#f4b400;
+}
+.controls [data-note-color=sort-f]._active,
+.guitar-neck [note=f].active--note i,
+.guitar-neck [note=fis].active--note i{
+    background:#3e96d1;
+}
+.controls [data-note-color=sort-g]._active,
+.guitar-neck [note=g].active--note i,
+.guitar-neck [note=ges].active--note i,
+.guitar-neck [note=gis].active--note i{
+    background:#ac5172;
+}
+.controls [data-note-color=sort-a]._active,
+.guitar-neck [note=a].active--note i,
+.guitar-neck [note=ais].active--note i,
+.guitar-neck [note=as].active--note i{
+    background:#8a6353;
+}
+.controls [data-note-color=sort-h]._active,
+.guitar-neck [note=b].active--note i,
+.guitar-neck [note=h].active--note i{
+    background:#555;
+}
+.guitar-neck .active--note i{
+    color:#fff;
+}
+.buttons-wrap{
+    height:38px;
+    width:100%;
+}
+.buttons-wrap *{
+    -webkit-user-select:none;
+    -moz-user-select:none;
+    user-select:none;
+}
+.accidental{
+    padding-left:1px;
+    font-size:inherit!important;
+}
+*{
+    margin:0;
+    padding:0;
+}
+.default__page__content ul{
+    padding-bottom:0;
+    list-style-type:none;
+}
+.a:hover{
+    text-decoration:none!important;
+}
+.classic-guitar{
+    padding:14px 0 46px 0;
+}
+.tools__page__content{
+    padding:0 75px 50px 75px;
+    margin:auto;
+}
+}
+</style>
+
+<div class="guitar-neck"><ul id="fretboard-list"><div class="headstock-wrap"><div class="headstock"><ul class="headstock-strings"><li class="headstock-string-f"></li><li class="headstock-string-h"></li><li class="headstock-string-g"></li><li class="headstock-string-d"></li><li class="headstock-string-a"></li><li class="headstock-string-e"></li></ul></div></div><ul data-v-556f695a="" class="strings"><li data-v-556f695a=""><span data-v-556f695a="" class="string-left" style="flex-grow: 11.5;"></span><span data-v-556f695a="" class="string-right" style="flex-grow: 0.5;"></span></li><li data-v-556f695a=""><span data-v-556f695a="" class="string-left" style="flex-grow: 11.5;"></span><span data-v-556f695a="" class="string-right" style="flex-grow: 0.5;"></span></li><li data-v-556f695a=""><span data-v-556f695a="" class="string-left" style="flex-grow: 11.5;"></span><span data-v-556f695a="" class="string-right" style="flex-grow: 0.5;"></span></li><li data-v-556f695a=""><span data-v-556f695a="" class="string-left" style="flex-grow: 11.5;"></span><span data-v-556f695a="" class="string-right" style="flex-grow: 0.5;"></span></li><li data-v-556f695a=""><span data-v-556f695a="" class="string-left" style="flex-grow: 11.5;"></span><span data-v-556f695a="" class="string-right" style="flex-grow: 0.5;"></span></li><li data-v-556f695a=""><span data-v-556f695a="" class="string-left" style="flex-grow: 11.5;"></span><span data-v-556f695a="" class="string-right" style="flex-grow: 0.5;"></span></li></ul><div></div></ul></div>
+
+<script>
+(function(){
+    const FRET_COUNT = 18;
+    const STRINGS = [
+        { name: "E4", midi: 64, note: "e" },
+        { name: "B3", midi: 59, note: "h" },
+        { name: "G3", midi: 55, note: "g" },
+        { name: "D3", midi: 50, note: "d" },
+        { name: "A2", midi: 45, note: "a" },
+        { name: "E2", midi: 40, note: "e" }
+    ];
+    
+    const NOTE_NAMES = ["c", "cis", "d", "dis", "e", "f", "fis", "g", "gis", "a", "ais", "h"];
+    const NOTE_DISPLAY = {
+        "c": "C", "cis": "升C", "d": "D", "dis": "升D", "e": "E", "f": "F",
+        "fis": "升F", "g": "G", "gis": "升G", "a": "A", "ais": "升A", "h": "B"
+    };
+    
+    function fretWidth(n) {
+        return Math.pow(2, -(n-1)/12) - Math.pow(2, -n/12);
+    }
+    
+    function getNoteName(midi) {
+        return NOTE_NAMES[midi % 12];
+    }
+    
+    function getNoteDisplay(midi) {
+        return NOTE_DISPLAY[getNoteName(midi)];
+    }
+    
+    function generateFretboard() {
+        const fretboardList = document.getElementById('fretboard-list');
+        
+        // 生成0品（空弦）
+        const openFret = document.createElement('li');
+        openFret.className = 'fret--first';
+        
+        STRINGS.forEach((string, index) => {
+            const span = document.createElement('span');
+            span.setAttribute('note', string.note);
+            span.className = `note-${string.note}1`;
+            
+            const openName = document.createElement('span');
+            openName.className = 'open-fret-note-name';
+            openName.textContent = string.name.charAt(0);
+            
+            const noteName = document.createElement('i');
+            noteName.className = 'note-name';
+            const innerSpan = document.createElement('span');
+            innerSpan.textContent = string.name.charAt(0);
+            noteName.appendChild(innerSpan);
+            
+            span.appendChild(openName);
+            span.appendChild(noteName);
+            
+            // 绑定点击事件
+            span.onclick = function() {
+                playGuitarNote(string.midi);
+                this.classList.toggle('active--note');
+            };
+            span.ontouchstart = function(e) {
+                e.preventDefault();
+                playGuitarNote(string.midi);
+                this.classList.toggle('active--note');
+            };
+            
+            openFret.appendChild(span);
+        });
+        
+        fretboardList.appendChild(openFret);
+        
+        // 生成1-18品
+        for (let fret = 1; fret <= FRET_COUNT; fret++) {
+            const li = document.createElement('li');
+            
+            // 添加品位标记
+            if (fret === 3 || fret === 5 || fret === 7 || fret === 9 || fret === 15 || fret === 17) {
+                const dots = document.createElement('div');
+                dots.className = 'dots';
+                li.appendChild(dots);
+            } else if (fret === 12) {
+                const dotsDouble = document.createElement('div');
+                dotsDouble.className = 'dots-double';
+                dotsDouble.innerHTML = '<span></span><span></span>';
+                li.appendChild(dotsDouble);
+            }
+            
+            // 为每根弦生成音符
+            STRINGS.forEach((string, stringIndex) => {
+                const midi = string.midi + fret;
+                const noteName = getNoteName(midi);
+                const displayName = getNoteDisplay(midi);
+                
+                const span = document.createElement('span');
+                span.setAttribute('note', noteName);
+                span.className = `note-${string.note}${fret + 1}`;
+                
+                const noteI = document.createElement('i');
+                noteI.className = 'note-name';
+                const innerSpan = document.createElement('span');
+                innerSpan.textContent = displayName;
+                noteI.appendChild(innerSpan);
+                
+                span.appendChild(noteI);
+                
+                // 绑定点击事件
+                span.onclick = function() {
+                    playGuitarNote(midi);
+                    this.classList.toggle('active--note');
+                };
+                span.ontouchstart = function(e) {
+                    e.preventDefault();
+                    playGuitarNote(midi);
+                    this.classList.toggle('active--note');
+                };
+                
+                li.appendChild(span);
+            });
+            
+            // 设置品格宽度（对数分布）
+            const widthPercent = fretWidth(fret) * 2000;
+            li.style.flex = `0 0 ${widthPercent}px`;
+            
+            fretboardList.appendChild(li);
+        }
+    }
+    
+    /* ==========================
+       WebAudio
+    ========================== */
+    let audioCtx = null;
+    
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
+    
+    function ensureAudio() {
+        if (!audioCtx || audioCtx.state === "closed") {
+            audioCtx = null;
+            return initAudio();
+        }
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
+    
+    function midiFreq(note) {
+        return 440 * Math.pow(2, (note - 69) / 12);
+    }
+    
+    function createGuitarBuffer(ctx, freq, velocity = 0.8) {
+        const rate = ctx.sampleRate;
+        const duration = 2.8;
+        const buffer = ctx.createBuffer(1, Math.floor(rate * duration), rate);
+        const data = buffer.getChannelData(0);
+        
+        let delay = rate / freq;
+        delay = Math.max(delay, 2);
+        
+        const ring = new Float32Array(Math.ceil(delay) + 2);
+        
+        for (let i = 0; i < ring.length; i++) {
+            let n = Math.random() * 2 - 1;
+            n *= (i % 5 === 0) ? 1.25 : 1;
+            ring[i] = n;
+        }
+        
+        let index = 0;
+        let previous = 0;
+        const decay = freq < 150 ? 0.992 : 0.995;
+        
+        for (let i = 0; i < data.length; i++) {
+            let sample = ring[index];
+            data[i] = sample * velocity;
+            
+            let nextIndex = index + 1;
+            if (nextIndex >= ring.length) nextIndex = 0;
+            let next = ring[nextIndex];
+            
+            let filtered = (sample + next) * 0.5;
+            filtered = filtered * 0.995 + previous * 0.005;
+            previous = filtered;
+            
+            ring[index] = filtered * decay;
+            index++;
+            if (index >= ring.length) index = 0;
+        }
+        
+        return buffer;
+    }
+    
+    function playGuitarNote(midi, velocity = 0.8) {
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        
+        const freq = midiFreq(midi);
+        const source = ctx.createBufferSource();
+        source.buffer = createGuitarBuffer(ctx, freq, velocity);
+        
+        const lowCut = ctx.createBiquadFilter();
+        lowCut.type = "highpass";
+        lowCut.frequency.value = 90;
+        
+        const high = ctx.createBiquadFilter();
+        high.type = "highshelf";
+        high.frequency.value = 1800;
+        high.gain.value = 6;
+        
+        const attack = ctx.createBiquadFilter();
+        attack.type = "peaking";
+        attack.frequency.value = 3500;
+        attack.Q.value = 1.3;
+        attack.gain.value = 3;
+        
+        const gain = ctx.createGain();
+        let comp = Math.pow(freq / 440, 0.22);
+        gain.gain.value = 0.65 + comp * 0.25;
+        
+        source.connect(lowCut);
+        lowCut.connect(high);
+        high.connect(attack);
+        attack.connect(gain);
+        gain.connect(ctx.destination);
+        
+        source.start();
+    }
+    
+    // 初始化
+    generateFretboard();
+    
+    document.addEventListener("click", function once() {
+        initAudio();
+        document.removeEventListener("click", once);
+    }, { once: true });
+    
+})();
+</script>
